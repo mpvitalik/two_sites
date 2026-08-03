@@ -2,6 +2,9 @@ module.exports = async (page, scenario, viewport, isReference, browserContext) =
   console.log('SCENARIO > ' + scenario.label);
   await require('./clickAndHoverHelper')(page, scenario);
 
+  // Freeze CSS animations & transitions
+  await require('./overrideCSS')(page, scenario);
+
   // Auto-scroll down the page to trigger lazy loading of images & content
   await page.evaluate(async () => {
     await new Promise((resolve) => {

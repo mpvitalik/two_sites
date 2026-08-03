@@ -22,13 +22,17 @@ function runCommand(command, cwd) {
 // Endpoint to run comparison
 app.post('/api/compare', async (req, res) => {
   try {
-    const { referenceUrl, testUrl, width = 1920, height = 1080, label = 'Custom Comparison', misMatchThreshold = 2.0 } = req.body;
+    const { referenceUrl, testUrl, width = 1920, height = 1080, label = 'Custom Comparison', misMatchThreshold = 2.0, hideSelectors = [] } = req.body;
 
     if (!referenceUrl || !testUrl) {
       return res.status(400).json({ success: false, error: 'Reference and Test URLs are required.' });
     }
 
     const parsedThreshold = parseFloat(misMatchThreshold) || 2.0;
+
+    const parsedHideSelectors = Array.isArray(hideSelectors)
+      ? hideSelectors
+      : (typeof hideSelectors === 'string' && hideSelectors.trim() ? hideSelectors.split(',').map(s => s.trim()) : []);
 
     // Build backstop config
     const config = {
@@ -54,7 +58,7 @@ app.post('/api/compare', async (req, res) => {
           readyEvent: '',
           readySelector: '',
           delay: 3000,
-          hideSelectors: [],
+          hideSelectors: parsedHideSelectors,
           removeSelectors: [],
           hoverSelector: '',
           clickSelector: '',

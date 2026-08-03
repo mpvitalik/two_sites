@@ -1,27 +1,21 @@
-/**
- * OVERRIDE CSS
- * Apply this CSS to the loaded page, as a way to override styles.
- *
- * Use this in an onReady script E.G.
-  ```
-  module.exports = async function(page, scenario) {
-    await require('./overrideCSS')(page, scenario);
-  }
-  ```
- *
- */
-
 const BACKSTOP_TEST_CSS_OVERRIDE = `
-  html {
-    background-image: none;
+  *, *::before, *::after {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+    animation-play-state: paused !important;
+    transition-duration: 0s !important;
+    transition-delay: 0s !important;
+    caret-color: transparent !important;
   }
 `;
 
 module.exports = async (page, scenario) => {
-  // inject arbitrary css to override styles
-  await page.addStyleTag({
-    content: BACKSTOP_TEST_CSS_OVERRIDE
-  });
-
-  console.log('BACKSTOP_TEST_CSS_OVERRIDE injected for: ' + scenario.label);
+  try {
+    await page.addStyleTag({
+      content: BACKSTOP_TEST_CSS_OVERRIDE
+    });
+    console.log('BACKSTOP_TEST_CSS_OVERRIDE injected for: ' + scenario.label);
+  } catch (err) {
+    console.error('Error injecting CSS override:', err.message);
+  }
 };
