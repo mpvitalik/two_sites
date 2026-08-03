@@ -75,6 +75,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const referenceUrl = referenceUrlInput.value.trim();
     const testUrl = testUrlInput.value.trim();
     const label = scenarioLabelInput.value.trim() || 'Custom Comparison';
+    const misMatchThresholdInput = document.getElementById('misMatchThreshold');
+    const misMatchThreshold = parseFloat(misMatchThresholdInput ? misMatchThresholdInput.value : 2.0) || 2.0;
 
     if (!referenceUrl || !testUrl) return;
 
@@ -94,6 +96,7 @@ document.addEventListener('DOMContentLoaded', () => {
       addLog(`Еталон (Reference): ${referenceUrl}`, 'info');
       addLog(`Тест (Test): ${testUrl}`, 'info');
       addLog(`Роздільна здатність: ${selectedWidth}x${selectedHeight}`, 'info');
+      addLog(`Допустиме розходження (Поріг): ${misMatchThreshold}%`, 'info');
 
       setProgress(40, 'Зйомка еталонного та тестового скріншотів');
 
@@ -105,7 +108,8 @@ document.addEventListener('DOMContentLoaded', () => {
           testUrl,
           label,
           width: selectedWidth,
-          height: selectedHeight
+          height: selectedHeight,
+          misMatchThreshold
         })
       });
 
@@ -122,7 +126,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const pair = data.reportData && data.reportData.tests && data.reportData.tests[0] && data.reportData.tests[0].pair;
       
       const mismatch = pair && pair.diff ? pair.diff.misMatchPercentage : '0.00';
-      const isSame = parseFloat(mismatch) <= 0.1;
+      const isSame = parseFloat(mismatch) <= misMatchThreshold;
 
       mismatchValue.textContent = `${mismatch}%`;
 

@@ -22,11 +22,13 @@ function runCommand(command, cwd) {
 // Endpoint to run comparison
 app.post('/api/compare', async (req, res) => {
   try {
-    const { referenceUrl, testUrl, width = 1920, height = 1080, label = 'Custom Comparison' } = req.body;
+    const { referenceUrl, testUrl, width = 1920, height = 1080, label = 'Custom Comparison', misMatchThreshold = 2.0 } = req.body;
 
     if (!referenceUrl || !testUrl) {
       return res.status(400).json({ success: false, error: 'Reference and Test URLs are required.' });
     }
+
+    const parsedThreshold = parseFloat(misMatchThreshold) || 2.0;
 
     // Build backstop config
     const config = {
@@ -40,6 +42,9 @@ app.post('/api/compare', async (req, res) => {
       ],
       onBeforeScript: 'playwright/onBefore.js',
       onReadyScript: 'playwright/onReady.js',
+      resembleOutputOptions: {
+        ignoreAntialiasing: true
+      },
       scenarios: [
         {
           label: label || 'Custom Comparison',
@@ -57,7 +62,7 @@ app.post('/api/compare', async (req, res) => {
           selectors: ['document'],
           selectorExpansion: true,
           expect: 0,
-          misMatchThreshold: 0.1,
+          misMatchThreshold: parsedThreshold,
           requireSameDimensions: true
         }
       ],

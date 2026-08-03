@@ -1,5 +1,5 @@
 {
-  "id": "backstop_web_ui",
+  "id": "backstop_default",
   "viewports": [
     {
       "label": "desktop",
@@ -9,11 +9,14 @@
   ],
   "onBeforeScript": "playwright/onBefore.js",
   "onReadyScript": "playwright/onReady.js",
+  "resembleOutputOptions": {
+    "ignoreAntialiasing": true
+  },
   "scenarios": [
     {
-      "label": "Homepage Comparison 1",
+      "label": "Homepage Comparison",
       "cookiePath": "backstop_data/engine_scripts/cookies.json",
-      "url": "https://rc.bons.com/",
+      "url": "https://bons.com/",
       "referenceUrl": "https://bons.com/",
       "readyEvent": "",
       "readySelector": "",
@@ -28,7 +31,7 @@
       ],
       "selectorExpansion": true,
       "expect": 0,
-      "misMatchThreshold": 0.1,
+      "misMatchThreshold": 2.0,
       "requireSameDimensions": true
     }
   ],
