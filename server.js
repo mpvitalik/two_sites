@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 const http = require('http');
+const { request: playwrightRequest } = require('playwright');
 
 const app = express();
 const PORT = process.env.PORT || 3030;
@@ -12,15 +13,33 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/backstop_data', express.static(path.join(__dirname, 'backstop_data')));
 
-// Helper to fetch text content from HTTP/HTTPS URL with redirect handling and browser headers
-function fetchUrlContent(url) {
+// Helper to fetch text content using Playwright HTTP client with fallback to native node http
+async function fetchUrlContent(url) {
+  try {
+    const apiReq = await playwrightRequest.newContext({
+      extraHTTPHeaders: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+      },
+      ignoreHTTPSErrors: true
+    });
+    const res = await apiReq.get(url, { timeout: 15000 });
+    const text = await res.text();
+    await apiReq.dispose();
+    if (res.status() === 200 && text && text.trim().length > 0) {
+      return text;
+    }
+  } catch (e) {
+    console.warn(`Playwright fetch failed for ${url}, trying fallback:`, e.message);
+  }
+
+  // Fallback to native https/http module
   return new Promise((resolve, reject) => {
     try {
       const options = {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          'Accept-Language': 'en-US,en;q=0.9'
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
         }
       };
       const client = url.startsWith('https') ? https : http;
