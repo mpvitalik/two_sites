@@ -144,14 +144,23 @@ document.addEventListener('DOMContentLoaded', () => {
         addLog(`Результат: Виявлено розходження! (Розходження: ${mismatch}%)`, 'error');
       }
 
+      function formatImagePath(relativePath) {
+        if (!relativePath) return '';
+        let cleaned = relativePath.replace(/^(\.\.\/|\.\/|\/)+/, '');
+        if (!cleaned.startsWith('backstop_data/')) {
+          cleaned = 'backstop_data/' + cleaned;
+        }
+        return '/' + cleaned;
+      }
+
       // Update Iframe
       reportIframe.src = `${data.reportUrl}?t=${Date.now()}`;
 
       // Update Side by Side Images
       if (pair) {
-        refImg.src = `/${pair.reference.replace('../', '')}?t=${Date.now()}`;
-        testImg.src = `/${pair.test.replace('../', '')}?t=${Date.now()}`;
-        diffImg.src = pair.diffImage ? `/${pair.diffImage.replace('../', '')}?t=${Date.now()}` : `/${pair.test.replace('../', '')}?t=${Date.now()}`;
+        refImg.src = `${formatImagePath(pair.reference)}?t=${Date.now()}`;
+        testImg.src = `${formatImagePath(pair.test)}?t=${Date.now()}`;
+        diffImg.src = `${formatImagePath(pair.diffImage || pair.test)}?t=${Date.now()}`;
       }
 
       setProgress(100, 'Завершено');
