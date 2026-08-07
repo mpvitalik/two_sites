@@ -353,4 +353,28 @@ document.addEventListener('DOMContentLoaded', () => {
       approveBtn.textContent = 'Затвердити як новий еталон';
     }
   });
+
+  // Handle Stop Comparison
+  const stopBtn = document.getElementById('stopBtn');
+  if (stopBtn) {
+    stopBtn.addEventListener('click', async () => {
+      try {
+        stopBtn.disabled = true;
+        addLog('Запит на зупинку порівняння...', 'error');
+
+        const res = await fetch('/api/stop', { method: 'POST' });
+        const data = await res.json();
+
+        addLog(data.message || 'Процес зупинено', 'error');
+        setProgress(0, 'Зупинено користувачем');
+      } catch (err) {
+        addLog(`Помилка зупинки: ${err.message}`, 'error');
+      } finally {
+        stopBtn.disabled = false;
+        runBtn.disabled = false;
+        btnText.textContent = 'Запустити порівняння';
+        btnLoader.classList.add('hidden');
+      }
+    });
+  }
 });

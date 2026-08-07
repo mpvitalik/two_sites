@@ -9,6 +9,8 @@ const { request: playwrightRequest } = require('playwright');
 const app = express();
 const PORT = process.env.PORT || 3030;
 
+let activeChildProcess = null;
+
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/backstop_data', express.static(path.join(__dirname, 'backstop_data')));
@@ -164,14 +166,33 @@ function pairSitemapUrls(refUrls, testSitemapUrl, testUrls = []) {
   return pairs;
 }
 
-// Utility to run a command as Promise
+// Utility to run a command as Promise and track active child process
 function runCommand(command, cwd) {
   return new Promise((resolve, reject) => {
-    exec(command, { cwd }, (error, stdout, stderr) => {
+    const child = exec(command, { cwd }, (error, stdout, stderr) => {
+      if (activeChildProcess === child) {
+        activeChildProcess = null;
+      }
       resolve({ error, stdout, stderr });
     });
+    activeChildProcess = child;
   });
 }
+
+// API: Stop active comparison process
+app.post('/api/stop', (req, res) => {
+  if (activeChildProcess) {
+    try {
+      activeChildProcess.kill('SIGKILL');
+      activeChildProcess = null;
+      console.log('Process killed by user request.');
+      return res.json({ success: true, message: 'Процес порівняння успішно зупинено.' });
+    } catch (err) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+  res.json({ success: true, message: 'Немає активних процесів для зупинки.' });
+});
 
 // API: Count Sitemap Pages
 app.post('/api/count-sitemap', async (req, res) => {

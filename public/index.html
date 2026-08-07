@@ -183,8 +183,14 @@
       <!-- Progress / Steps Drawer -->
       <section id="progressSection" class="card progress-card hidden">
         <div class="progress-header">
-          <h3>Виконання порівняння...</h3>
-          <span id="progressStepText" class="progress-step-tag">Запуск двигуна Playwright</span>
+          <div class="progress-title-group">
+            <h3>Виконання порівняння...</h3>
+            <span id="progressStepText" class="progress-step-tag">Запуск двигуна Playwright</span>
+          </div>
+          <button type="button" id="stopBtn" class="btn btn-danger btn-sm">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>
+            <span>Зупинити порівняння</span>
+          </button>
         </div>
         <div class="progress-bar-container">
           <div id="progressBar" class="progress-bar-fill" style="width: 15%;"></div>
