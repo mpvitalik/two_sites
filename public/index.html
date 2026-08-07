@@ -42,50 +42,120 @@
       <section class="card input-card">
         <div class="card-header">
           <h2>Порівняння веб-сторінок</h2>
-          <p>Введіть URL еталонної сторінки та сторінки порівняння для генерації візуального звіту розходжень</p>
+          <p>Виберіть режим тестування: порівняння 2-х окремих сторінок або масове порівняння за допомогою файлів sitemap.xml</p>
+        </div>
+
+        <!-- Mode Switcher Tabs -->
+        <div class="mode-switcher">
+          <button type="button" class="mode-btn active" data-mode="single">Дві сторінки</button>
+          <button type="button" class="mode-btn" data-mode="sitemap">За файлом sitemap.xml</button>
         </div>
 
         <form id="compareForm" class="compare-form">
-          <div class="input-grid">
-            <!-- Reference URL Input -->
-            <div class="input-group">
-              <label for="referenceUrl">
-                <span class="label-badge reference-badge">Reference</span>
-                Еталонна сторінка (Оригінал)
-              </label>
-              <div class="input-wrapper">
-                <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-                <input type="url" id="referenceUrl" placeholder="https://bons.com/" required value="https://bons.com/">
+
+          <!-- MODE 1: Single Pair Inputs -->
+          <div id="singleModeSection" class="mode-section">
+            <div class="input-grid">
+              <div class="input-group">
+                <label for="referenceUrl">
+                  <span class="label-badge reference-badge">Reference</span>
+                  Еталонна сторінка (Оригінал)
+                </label>
+                <div class="input-wrapper">
+                  <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                  <input type="url" id="referenceUrl" placeholder="https://bons.com/" value="https://bons.com/">
+                </div>
+              </div>
+
+              <div class="input-group">
+                <label for="testUrl">
+                  <span class="label-badge test-badge">Test</span>
+                  Сторінка порівняння (Тест)
+                </label>
+                <div class="input-wrapper">
+                  <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                  <input type="url" id="testUrl" placeholder="https://rc.bons.com/" value="https://rc.bons.com/">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- MODE 2: Sitemap Inputs & Checkboxes -->
+          <div id="sitemapModeSection" class="mode-section hidden">
+            <div class="input-grid">
+              <div class="input-group">
+                <label for="referenceSitemapUrl">
+                  <span class="label-badge reference-badge">Reference Sitemap</span>
+                  Еталонний sitemap.xml
+                </label>
+                <div class="input-wrapper">
+                  <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                  <input type="url" id="referenceSitemapUrl" placeholder="https://bons.com/sitemap.xml" value="https://bons.com/sitemap.xml">
+                </div>
+              </div>
+
+              <div class="input-group">
+                <label for="testSitemapUrl">
+                  <span class="label-badge test-badge">Test Sitemap</span>
+                  Тестовий sitemap.xml
+                </label>
+                <div class="input-wrapper">
+                  <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                  <input type="url" id="testSitemapUrl" placeholder="https://rc.bons.com/sitemap.xml" value="https://rc.bons.com/sitemap.xml">
+                </div>
               </div>
             </div>
 
-            <!-- Test URL Input -->
-            <div class="input-group">
-              <label for="testUrl">
-                <span class="label-badge test-badge">Test</span>
-                Сторінка порівняння (Тест)
-              </label>
-              <div class="input-wrapper">
-                <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-                <input type="url" id="testUrl" placeholder="https://rc.bons.com/" required value="https://rc.bons.com/">
+            <!-- Filters Section -->
+            <div class="filter-box">
+              <div class="filter-group">
+                <label class="filter-title">Включити мови / локалі:</label>
+                <div class="checkbox-grid">
+                  <label class="checkbox-item"><input type="checkbox" name="locales" value="root" checked> Root (Головна)</label>
+                  <label class="checkbox-item"><input type="checkbox" name="locales" value="ja"> ja (Японська)</label>
+                  <label class="checkbox-item"><input type="checkbox" name="locales" value="ru"> ru (Російська)</label>
+                  <label class="checkbox-item"><input type="checkbox" name="locales" value="ko"> ko (Корейська)</label>
+                  <label class="checkbox-item"><input type="checkbox" name="locales" value="es"> es (Іспанська)</label>
+                  <label class="checkbox-item"><input type="checkbox" name="locales" value="pt-br"> pt-br (Португальська)</label>
+                  <label class="checkbox-item"><input type="checkbox" name="locales" value="en-in"> en-in (Індійська)</label>
+                  <label class="checkbox-item"><input type="checkbox" name="locales" value="bc"> bc (Бразильська)</label>
+                </div>
+              </div>
+
+              <div class="filter-group margin-top-12">
+                <label class="filter-title">Правила виключення:</label>
+                <div class="checkbox-grid">
+                  <label class="checkbox-item"><input type="checkbox" id="excludeGames" checked> Ігнорувати ігри (містить <code>/game/</code>)</label>
+                  <label class="checkbox-item"><input type="checkbox" id="excludeSports" checked> Ігнорувати розділ Спорт (містить <code>/sports</code>, <code>/sport_</code>)</label>
+                </div>
+              </div>
+
+              <!-- Page Count Action -->
+              <div class="count-action-row">
+                <button type="button" id="countPagesBtn" class="btn btn-secondary btn-sm">
+                  <span>Порахувати сторінки</span>
+                </button>
+                <div id="pageCountDisplay" class="page-count-badge hidden">
+                  Кількість сторінок для порівняння: <strong id="pageCountNumber">0</strong>
+                </div>
               </div>
             </div>
           </div>
 
           <!-- Options Row -->
           <div class="options-row">
-            <div class="input-group flex-1">
+            <div class="input-group flex-1" id="scenarioLabelGroup">
               <label for="scenarioLabel">Назва тест-кейсу (Опціонально)</label>
               <input type="text" id="scenarioLabel" placeholder="Наприклад: Homepage Comparison" value="Homepage Comparison">
             </div>
 
             <div class="input-group flex-1">
               <label for="hideSelectors">Приховати динамічні селектори (hideSelectors)</label>
-              <input type="text" id="hideSelectors" placeholder="Наприклад: .carousel, .timer, .live-bets" style="padding-left: 14px;">
+              <input type="text" id="hideSelectors" placeholder="Наприклад: .carousel, .timer, .live-bets">
             </div>
 
-            <div class="input-group" style="width: 220px;">
-              <label for="misMatchThreshold">Допустиме розходження (% / пікселі)</label>
+            <div class="input-group" style="width: 200px;">
+              <label for="misMatchThreshold">Допустиме розходження (%)</label>
               <input type="number" id="misMatchThreshold" step="0.1" min="0" max="100" value="2.0" style="padding-left: 14px;">
             </div>
 
@@ -135,6 +205,7 @@
             </div>
           </div>
           <div class="results-meta">
+            <span class="meta-item">Всього сторінок: <strong id="totalScenariosValue">1</strong></span>
             <span class="meta-item">Різниця: <strong id="mismatchValue">0.00%</strong></span>
             <button id="approveBtn" class="btn btn-secondary btn-sm">Затвердити як новий еталон</button>
           </div>
