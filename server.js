@@ -16,24 +16,19 @@ app.use('/backstop_data', express.static(path.join(__dirname, 'backstop_data')))
 function fetchUrlContent(url) {
   return new Promise((resolve, reject) => {
     try {
-      const parsed = new URL(url);
       const options = {
-        hostname: parsed.hostname,
-        port: parsed.port || (parsed.protocol === 'https:' ? 443 : 80),
-        path: parsed.pathname + parsed.search,
-        method: 'GET',
         headers: {
           'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36',
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
           'Accept-Language': 'en-US,en;q=0.9'
         }
       };
-
-      const client = parsed.protocol === 'https:' ? https : http;
-      const req = client.request(options, (res) => {
+      const client = url.startsWith('https') ? https : http;
+      client.get(url, options, (res) => {
         if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
           let redirectUrl = res.headers.location;
           if (redirectUrl.startsWith('/')) {
+            const parsed = new URL(url);
             redirectUrl = `${parsed.protocol}//${parsed.host}${redirectUrl}`;
           }
           return fetchUrlContent(redirectUrl).then(resolve).catch(reject);
@@ -41,10 +36,7 @@ function fetchUrlContent(url) {
         let data = '';
         res.on('data', chunk => data += chunk);
         res.on('end', () => resolve(data));
-      });
-
-      req.on('error', err => reject(err));
-      req.end();
+      }).on('error', err => reject(err));
     } catch (e) {
       reject(e);
     }
