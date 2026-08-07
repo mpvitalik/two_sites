@@ -12,23 +12,42 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/backstop_data', express.static(path.join(__dirname, 'backstop_data')));
 
-// Helper to fetch text content from HTTP/HTTPS URL with redirect handling
+// Helper to fetch text content from HTTP/HTTPS URL with redirect handling and browser headers
 function fetchUrlContent(url) {
   return new Promise((resolve, reject) => {
-    const client = url.startsWith('https') ? https : http;
-    client.get(url, (res) => {
-      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-        let redirectUrl = res.headers.location;
-        if (redirectUrl.startsWith('/')) {
-          const parsed = new URL(url);
-          redirectUrl = `${parsed.protocol}//${parsed.host}${redirectUrl}`;
+    try {
+      const parsed = new URL(url);
+      const options = {
+        hostname: parsed.hostname,
+        port: parsed.port || (parsed.protocol === 'https:' ? 443 : 80),
+        path: parsed.pathname + parsed.search,
+        method: 'GET',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.9'
         }
-        return fetchUrlContent(redirectUrl).then(resolve).catch(reject);
-      }
-      let data = '';
-      res.on('data', chunk => data += chunk);
-      res.on('end', () => resolve(data));
-    }).on('error', err => reject(err));
+      };
+
+      const client = parsed.protocol === 'https:' ? https : http;
+      const req = client.request(options, (res) => {
+        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+          let redirectUrl = res.headers.location;
+          if (redirectUrl.startsWith('/')) {
+            redirectUrl = `${parsed.protocol}//${parsed.host}${redirectUrl}`;
+          }
+          return fetchUrlContent(redirectUrl).then(resolve).catch(reject);
+        }
+        let data = '';
+        res.on('data', chunk => data += chunk);
+        res.on('end', () => resolve(data));
+      });
+
+      req.on('error', err => reject(err));
+      req.end();
+    } catch (e) {
+      reject(e);
+    }
   });
 }
 
@@ -152,8 +171,17 @@ app.post('/api/count-sitemap', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Reference Sitemap URL is required.' });
     }
 
-    const refXml = await fetchUrlContent(referenceSitemapUrl);
+    let refXml = '';
+    try {
+      refXml = await fetchUrlContent(referenceSitemapUrl);
+    } catch (err) {
+      return res.status(400).json({ success: false, error: `Не вдалося завантажити Reference Sitemap: ${err.message}` });
+    }
+
     const refUrls = extractSitemapUrls(refXml);
+    if (refUrls.length === 0) {
+      return res.status(400).json({ success: false, error: 'Не знайдено жодного <loc> URL у Reference Sitemap. Перевірте посилання на sitemap.xml' });
+    }
 
     let testUrls = [];
     if (testSitemapUrl) {
@@ -237,7 +265,13 @@ app.post('/api/compare-sitemap', async (req, res) => {
       ? hideSelectors
       : (typeof hideSelectors === 'string' && hideSelectors.trim() ? hideSelectors.split(',').map(s => s.trim()) : []);
 
-    const refXml = await fetchUrlContent(referenceSitemapUrl);
+    let refXml = '';
+    try {
+      refXml = await fetchUrlContent(referenceSitemapUrl);
+    } catch (err) {
+      return res.status(400).json({ success: false, error: `Не вдалося завантажити Reference Sitemap: ${err.message}` });
+    }
+
     const refUrls = extractSitemapUrls(refXml);
 
     let testUrls = [];
@@ -252,7 +286,7 @@ app.post('/api/compare-sitemap', async (req, res) => {
     const pairs = pairSitemapUrls(filteredRefUrls, testSitemapUrl || referenceSitemapUrl, testUrls);
 
     if (pairs.length === 0) {
-      return res.status(400).json({ success: false, error: 'No page pairs found to compare after applying filters.' });
+      return res.status(400).json({ success: false, error: 'Не знайдено жодної пари сторінок для порівняння після застосування фільтрів.' });
     }
 
     const scenarios = pairs.map(p => ({
@@ -359,6 +393,12 @@ app.post('/api/approve', async (req, res) => {
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
+});
+
+// Express JSON Error Handler Middleware
+app.use((err, req, res, next) => {
+  console.error('Unhandled server error:', err);
+  res.status(500).json({ success: false, error: err.message || 'Internal Server Error' });
 });
 
 app.listen(PORT, () => {

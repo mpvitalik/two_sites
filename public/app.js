@@ -93,7 +93,13 @@ document.addEventListener('DOMContentLoaded', () => {
         })
       });
 
-      const data = await response.json();
+      const text = await response.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        throw new Error(`Сервер повернув помилку (${response.status}): ${text.slice(0, 150)}`);
+      }
 
       if (!data.success) {
         throw new Error(data.error || 'Помилка підрахунку сторінок');
@@ -262,7 +268,13 @@ document.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify(payload)
       });
 
-      const data = await response.json();
+      const compareText = await response.text();
+      let data;
+      try {
+        data = JSON.parse(compareText);
+      } catch (e) {
+        throw new Error(`Сервер повернув помилку (${response.status}): ${compareText.slice(0, 150)}`);
+      }
 
       if (!data.success) {
         throw new Error(data.error || 'Помилка виконання порівняння');
