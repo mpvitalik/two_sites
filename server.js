@@ -15,13 +15,13 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/backstop_data', express.static(path.join(__dirname, 'backstop_data')));
 
-// Helper to embed basic auth into URL string
+// Helper to embed basic auth into URL string with proper encoding
 function applyAuthToUrl(urlStr, username, password) {
   if (!username) return urlStr;
   try {
     const parsed = new URL(urlStr);
-    parsed.username = username;
-    parsed.password = password || '';
+    parsed.username = encodeURIComponent(username);
+    parsed.password = encodeURIComponent(password || '');
     return parsed.toString();
   } catch (e) {
     return urlStr;

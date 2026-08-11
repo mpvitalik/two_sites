@@ -4,25 +4,35 @@ module.exports = async (page, scenario, viewport, isReference) => {
     await require('./loadCookies')(context, scenario);
   }
 
-  if (scenario.basicAuth && scenario.basicAuth.username) {
-    const username = scenario.basicAuth.username;
-    const password = scenario.basicAuth.password || '';
-    const credentials = Buffer.from(`${username}:${password}`).toString('base64');
+  let username = scenario.basicAuth ? scenario.basicAuth.username : '';
+  let password = scenario.basicAuth ? scenario.basicAuth.password : '';
+
+  // Fallback: extract credentials directly from URL if basicAuth object is empty
+  const targetUrl = (isReference && scenario.referenceUrl) ? scenario.referenceUrl : scenario.url;
+  if (!username && targetUrl) {
+    try {
+      const parsed = new URL(targetUrl);
+      if (parsed.username) {
+        username = decodeURIComponent(parsed.username);
+        password = decodeURIComponent(parsed.password || '');
+      }
+    } catch (e) {}
+  }
+
+  if (username) {
+    const credentials = Buffer.from(`${username}:${password || ''}`).toString('base64');
 
     try {
-      // 1. Native Playwright HTTP credentials on browser context
       if (context && typeof context.setHTTPCredentials === 'function') {
-        await context.setHTTPCredentials({ username, password });
+        await context.setHTTPCredentials({ username, password: password || '' });
       }
 
-      // 2. Extra HTTP Headers for initial navigation
       if (typeof page.setExtraHTTPHeaders === 'function') {
         await page.setExtraHTTPHeaders({
           'Authorization': `Basic ${credentials}`
         });
       }
 
-      // 3. Route interception for all subresources (images, scripts, styles, fonts)
       if (typeof page.route === 'function') {
         await page.route('**/*', async (route) => {
           const headers = { ...route.request().headers() };
@@ -31,7 +41,7 @@ module.exports = async (page, scenario, viewport, isReference) => {
         });
       }
 
-      console.log(`HTTP Basic Auth set up for scenario: ${scenario.label}`);
+      console.log(`HTTP Basic Auth (${username}) applied for ${scenario.label}`);
     } catch (err) {
       console.error('Error setting Basic Auth:', err.message);
     }
