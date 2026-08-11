@@ -16,8 +16,8 @@
     {
       "label": "Homepage Comparison",
       "cookiePath": "backstop_data/engine_scripts/cookies.json",
-      "url": "https://rc.bons.com/",
-      "referenceUrl": "https://bons.com/",
+      "url": "https://preprod.slotra.com/en",
+      "referenceUrl": "https://slotra.com/en",
       "readyEvent": "",
       "readySelector": "",
       "delay": 3000,

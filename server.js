@@ -15,44 +15,61 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/backstop_data', express.static(path.join(__dirname, 'backstop_data')));
 
+// Helper to embed basic auth into URL string
+function applyAuthToUrl(urlStr, username, password) {
+  if (!username) return urlStr;
+  try {
+    const parsed = new URL(urlStr);
+    parsed.username = username;
+    parsed.password = password || '';
+    return parsed.toString();
+  } catch (e) {
+    return urlStr;
+  }
+}
+
 // Helper to fetch text content using Playwright HTTP client with fallback to native node http
-async function fetchUrlContent(url) {
+async function fetchUrlContent(url, username, password) {
+  const targetUrl = applyAuthToUrl(url, username, password);
+  const extraHeaders = {
+    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+  };
+
+  if (username) {
+    extraHeaders['Authorization'] = 'Basic ' + Buffer.from(`${username}:${password || ''}`).toString('base64');
+  }
+
   try {
     const apiReq = await playwrightRequest.newContext({
-      extraHTTPHeaders: {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
-      },
+      extraHTTPHeaders: extraHeaders,
       ignoreHTTPSErrors: true
     });
-    const res = await apiReq.get(url, { timeout: 15000 });
+    const res = await apiReq.get(targetUrl, { timeout: 15000 });
     const text = await res.text();
     await apiReq.dispose();
     if (res.status() === 200 && text && text.trim().length > 0) {
       return text;
     }
   } catch (e) {
-    console.warn(`Playwright fetch failed for ${url}, trying fallback:`, e.message);
+    console.warn(`Playwright fetch failed for ${targetUrl}, trying fallback:`, e.message);
   }
 
   // Fallback to native https/http module
   return new Promise((resolve, reject) => {
     try {
       const options = {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
-        }
+        headers: extraHeaders
       };
-      const client = url.startsWith('https') ? https : http;
-      client.get(url, options, (res) => {
+      const client = targetUrl.startsWith('https') ? https : http;
+      client.get(targetUrl, options, (res) => {
         if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
           let redirectUrl = res.headers.location;
           if (redirectUrl.startsWith('/')) {
-            const parsed = new URL(url);
+            const parsed = new URL(targetUrl);
             redirectUrl = `${parsed.protocol}//${parsed.host}${redirectUrl}`;
           }
-          return fetchUrlContent(redirectUrl).then(resolve).catch(reject);
+          return fetchUrlContent(redirectUrl, username, password).then(resolve).catch(reject);
         }
         let data = '';
         res.on('data', chunk => data += chunk);
@@ -197,7 +214,7 @@ app.post('/api/stop', (req, res) => {
 // API: Count Sitemap Pages
 app.post('/api/count-sitemap', async (req, res) => {
   try {
-    const { referenceSitemapUrl, testSitemapUrl, allowedLocales = [], excludeGames = true, excludeSports = true } = req.body;
+    const { referenceSitemapUrl, testSitemapUrl, allowedLocales = [], excludeGames = true, excludeSports = true, authUsername, authPassword } = req.body;
 
     if (!referenceSitemapUrl) {
       return res.status(400).json({ success: false, error: 'Reference Sitemap URL is required.' });
@@ -205,7 +222,7 @@ app.post('/api/count-sitemap', async (req, res) => {
 
     let refXml = '';
     try {
-      refXml = await fetchUrlContent(referenceSitemapUrl);
+      refXml = await fetchUrlContent(referenceSitemapUrl, authUsername, authPassword);
     } catch (err) {
       return res.status(400).json({ success: false, error: `Не вдалося завантажити Reference Sitemap: ${err.message}` });
     }
@@ -218,7 +235,7 @@ app.post('/api/count-sitemap', async (req, res) => {
     let testUrls = [];
     if (testSitemapUrl) {
       try {
-        const testXml = await fetchUrlContent(testSitemapUrl);
+        const testXml = await fetchUrlContent(testSitemapUrl, authUsername, authPassword);
         testUrls = extractSitemapUrls(testXml);
       } catch (e) {}
     }
@@ -241,7 +258,7 @@ app.post('/api/count-sitemap', async (req, res) => {
 // API: Single Pair Compare
 app.post('/api/compare', async (req, res) => {
   try {
-    const { referenceUrl, testUrl, width = 1920, height = 1080, label = 'Custom Comparison', misMatchThreshold = 2.0, hideSelectors = [] } = req.body;
+    const { referenceUrl, testUrl, width = 1920, height = 1080, label = 'Custom Comparison', misMatchThreshold = 2.0, hideSelectors = [], authUsername, authPassword } = req.body;
 
     if (!referenceUrl || !testUrl) {
       return res.status(400).json({ success: false, error: 'Reference and Test URLs are required.' });
@@ -253,12 +270,15 @@ app.post('/api/compare', async (req, res) => {
       ? hideSelectors
       : (typeof hideSelectors === 'string' && hideSelectors.trim() ? hideSelectors.split(',').map(s => s.trim()) : []);
 
+    const basicAuth = authUsername ? { username: authUsername, password: authPassword || '' } : null;
+
     const scenarios = [
       {
         label: label || 'Custom Comparison',
         cookiePath: 'backstop_data/engine_scripts/cookies.json',
-        url: testUrl,
-        referenceUrl: referenceUrl,
+        url: applyAuthToUrl(testUrl, authUsername, authPassword),
+        referenceUrl: applyAuthToUrl(referenceUrl, authUsername, authPassword),
+        basicAuth: basicAuth,
         readyEvent: '',
         readySelector: '',
         delay: 3000,
@@ -285,7 +305,7 @@ app.post('/api/compare', async (req, res) => {
 // API: Sitemap Bulk Compare
 app.post('/api/compare-sitemap', async (req, res) => {
   try {
-    const { referenceSitemapUrl, testSitemapUrl, allowedLocales = [], excludeGames = true, excludeSports = true, width = 1920, height = 1080, misMatchThreshold = 2.0, hideSelectors = [] } = req.body;
+    const { referenceSitemapUrl, testSitemapUrl, allowedLocales = [], excludeGames = true, excludeSports = true, width = 1920, height = 1080, misMatchThreshold = 2.0, hideSelectors = [], authUsername, authPassword } = req.body;
 
     if (!referenceSitemapUrl) {
       return res.status(400).json({ success: false, error: 'Reference Sitemap URL is required.' });
@@ -299,7 +319,7 @@ app.post('/api/compare-sitemap', async (req, res) => {
 
     let refXml = '';
     try {
-      refXml = await fetchUrlContent(referenceSitemapUrl);
+      refXml = await fetchUrlContent(referenceSitemapUrl, authUsername, authPassword);
     } catch (err) {
       return res.status(400).json({ success: false, error: `Не вдалося завантажити Reference Sitemap: ${err.message}` });
     }
@@ -309,7 +329,7 @@ app.post('/api/compare-sitemap', async (req, res) => {
     let testUrls = [];
     if (testSitemapUrl) {
       try {
-        const testXml = await fetchUrlContent(testSitemapUrl);
+        const testXml = await fetchUrlContent(testSitemapUrl, authUsername, authPassword);
         testUrls = extractSitemapUrls(testXml);
       } catch (e) {}
     }
@@ -321,11 +341,14 @@ app.post('/api/compare-sitemap', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Не знайдено жодної пари сторінок для порівняння після застосування фільтрів.' });
     }
 
+    const basicAuth = authUsername ? { username: authUsername, password: authPassword || '' } : null;
+
     const scenarios = pairs.map(p => ({
       label: p.label,
       cookiePath: 'backstop_data/engine_scripts/cookies.json',
-      url: p.url,
-      referenceUrl: p.referenceUrl,
+      url: applyAuthToUrl(p.url, authUsername, authPassword),
+      referenceUrl: applyAuthToUrl(p.referenceUrl, authUsername, authPassword),
+      basicAuth: basicAuth,
       readyEvent: '',
       readySelector: '',
       delay: 3000,

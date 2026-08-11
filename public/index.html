@@ -158,6 +158,19 @@
               <label for="misMatchThreshold">Допустиме розходження (%)</label>
               <input type="number" id="misMatchThreshold" step="0.1" min="0" max="100" value="2.0" style="padding-left: 14px;">
             </div>
+          </div>
+
+          <!-- Basic Auth Row -->
+          <div class="options-row">
+            <div class="input-group flex-1">
+              <label for="authUsername">HTTP Basic Auth Логін (Якщо є захист 401 Nginx)</label>
+              <input type="text" id="authUsername" placeholder="Наприклад: admin">
+            </div>
+
+            <div class="input-group flex-1">
+              <label for="authPassword">HTTP Basic Auth Пароль</label>
+              <input type="text" id="authPassword" placeholder="Наприклад: secret123">
+            </div>
 
             <div class="input-group">
               <label>Роздільна здатність (Viewport)</label>

@@ -81,6 +81,11 @@ document.addEventListener('DOMContentLoaded', () => {
       const excludeGames = excludeGamesCheckbox ? excludeGamesCheckbox.checked : true;
       const excludeSports = excludeSportsCheckbox ? excludeSportsCheckbox.checked : true;
 
+      const authUsernameInput = document.getElementById('authUsername');
+      const authPasswordInput = document.getElementById('authPassword');
+      const authUsername = authUsernameInput ? authUsernameInput.value.trim() : '';
+      const authPassword = authPasswordInput ? authPasswordInput.value.trim() : '';
+
       const response = await fetch('/api/count-sitemap', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -89,7 +94,9 @@ document.addEventListener('DOMContentLoaded', () => {
           testSitemapUrl,
           allowedLocales,
           excludeGames,
-          excludeSports
+          excludeSports,
+          authUsername,
+          authPassword
         })
       });
 
@@ -183,6 +190,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const misMatchThreshold = parseFloat(misMatchThresholdInput ? misMatchThresholdInput.value : 2.0) || 2.0;
     const hideSelectors = hideSelectorsInput ? hideSelectorsInput.value.trim() : '';
+    const authUsernameInput = document.getElementById('authUsername');
+    const authPasswordInput = document.getElementById('authPassword');
+    const authUsername = authUsernameInput ? authUsernameInput.value.trim() : '';
+    const authPassword = authPasswordInput ? authPasswordInput.value.trim() : '';
 
     let endpoint = '';
     let payload = {};
@@ -205,7 +216,9 @@ document.addEventListener('DOMContentLoaded', () => {
         width: selectedWidth,
         height: selectedHeight,
         misMatchThreshold,
-        hideSelectors
+        hideSelectors,
+        authUsername,
+        authPassword
       };
 
     } else {
@@ -230,7 +243,9 @@ document.addEventListener('DOMContentLoaded', () => {
         width: selectedWidth,
         height: selectedHeight,
         misMatchThreshold,
-        hideSelectors
+        hideSelectors,
+        authUsername,
+        authPassword
       };
     }
 
