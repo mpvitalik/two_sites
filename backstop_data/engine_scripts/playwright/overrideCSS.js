@@ -1,8 +1,7 @@
 const BACKSTOP_TEST_CSS_OVERRIDE = `
-  *, *::before, *::after {
+  *:not([class*="loader"]):not([class*="spinner"]):not([class*="splash"]):not([class*="preloader"]) {
     animation-duration: 0s !important;
     animation-delay: 0s !important;
-    animation-play-state: paused !important;
     transition-duration: 0s !important;
     transition-delay: 0s !important;
     caret-color: transparent !important;

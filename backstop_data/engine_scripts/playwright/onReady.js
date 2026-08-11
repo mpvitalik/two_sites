@@ -2,18 +2,8 @@ module.exports = async (page, scenario, viewport, isReference, browserContext) =
   console.log('SCENARIO > ' + scenario.label);
   await require('./clickAndHoverHelper')(page, scenario);
 
-  // Freeze CSS animations & transitions
-  await require('./overrideCSS')(page, scenario);
-
-  // Wait for initial splash loader or preloader overlay to disappear
-  try {
-    await page.waitForFunction(() => {
-      const splash = document.querySelector('.splash-screen, .app-preloader, #preloader, [class*="preloader"], [class*="splash-loader"]');
-      if (!splash) return true;
-      const style = window.getComputedStyle(splash);
-      return style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0';
-    }, { timeout: 8000 }).catch(() => {});
-  } catch (e) {}
+  // Wait for initial JS bundle and rendering
+  await page.waitForTimeout(3000);
 
   // Auto-scroll down the page to trigger lazy loading of images & content
   await page.evaluate(async () => {
@@ -33,6 +23,19 @@ module.exports = async (page, scenario, viewport, isReference, browserContext) =
     });
   });
 
-  // Small delay for any pending lazy-loaded images to finish rendering
-  await page.waitForTimeout(2000);
+  // Force hide any lingering splash / loader overlays before capturing screenshot
+  await page.evaluate(() => {
+    const loaders = document.querySelectorAll('.splash-screen, .app-preloader, #preloader, [class*="preloader"], [class*="splash-loader"]');
+    loaders.forEach(el => {
+      el.style.display = 'none';
+      el.style.visibility = 'hidden';
+      el.style.opacity = '0';
+    });
+  });
+
+  // Freeze CSS animations for static screenshot capture
+  await require('./overrideCSS')(page, scenario);
+
+  // Final small delay for images to settle
+  await page.waitForTimeout(1000);
 };

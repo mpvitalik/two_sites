@@ -16,15 +16,15 @@
     {
       "label": "Homepage Comparison",
       "cookiePath": "backstop_data/engine_scripts/cookies.json",
-      "url": "https://preprod:preprod123@preprod.slotra.com/en",
-      "referenceUrl": "https://preprod:preprod123@slotra.com/en",
+      "url": "https://preprod:preprod123@slotra.com/en",
+      "referenceUrl": "https://preprod:preprod123@preprod.slotra.com/en",
       "basicAuth": {
         "username": "preprod",
         "password": "preprod123"
       },
       "readyEvent": "",
       "readySelector": "",
-      "delay": 3000,
+      "delay": 6000,
       "hideSelectors": [],
       "removeSelectors": [],
       "hoverSelector": "",
