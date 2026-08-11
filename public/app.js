@@ -194,6 +194,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const authPasswordInput = document.getElementById('authPassword');
     const authUsername = authUsernameInput ? authUsernameInput.value.trim() : '';
     const authPassword = authPasswordInput ? authPasswordInput.value.trim() : '';
+    const renderDelayInput = document.getElementById('renderDelay');
+    const delay = parseInt(renderDelayInput ? renderDelayInput.value : 6000) || 6000;
 
     let endpoint = '';
     let payload = {};
@@ -218,7 +220,8 @@ document.addEventListener('DOMContentLoaded', () => {
         misMatchThreshold,
         hideSelectors,
         authUsername,
-        authPassword
+        authPassword,
+        delay
       };
 
     } else {
@@ -245,7 +248,8 @@ document.addEventListener('DOMContentLoaded', () => {
         misMatchThreshold,
         hideSelectors,
         authUsername,
-        authPassword
+        authPassword,
+        delay
       };
     }
 

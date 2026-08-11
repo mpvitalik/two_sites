@@ -258,13 +258,14 @@ app.post('/api/count-sitemap', async (req, res) => {
 // API: Single Pair Compare
 app.post('/api/compare', async (req, res) => {
   try {
-    const { referenceUrl, testUrl, width = 1920, height = 1080, label = 'Custom Comparison', misMatchThreshold = 2.0, hideSelectors = [], authUsername, authPassword } = req.body;
+    const { referenceUrl, testUrl, width = 1920, height = 1080, label = 'Custom Comparison', misMatchThreshold = 2.0, hideSelectors = [], authUsername, authPassword, delay = 6000 } = req.body;
 
     if (!referenceUrl || !testUrl) {
       return res.status(400).json({ success: false, error: 'Reference and Test URLs are required.' });
     }
 
     const parsedThreshold = parseFloat(misMatchThreshold) || 2.0;
+    const parsedDelay = parseInt(delay) || 6000;
 
     const parsedHideSelectors = Array.isArray(hideSelectors)
       ? hideSelectors
@@ -281,7 +282,7 @@ app.post('/api/compare', async (req, res) => {
         basicAuth: basicAuth,
         readyEvent: '',
         readySelector: '',
-        delay: 3000,
+        delay: parsedDelay,
         hideSelectors: parsedHideSelectors,
         removeSelectors: [],
         hoverSelector: '',
@@ -305,13 +306,14 @@ app.post('/api/compare', async (req, res) => {
 // API: Sitemap Bulk Compare
 app.post('/api/compare-sitemap', async (req, res) => {
   try {
-    const { referenceSitemapUrl, testSitemapUrl, allowedLocales = [], excludeGames = true, excludeSports = true, width = 1920, height = 1080, misMatchThreshold = 2.0, hideSelectors = [], authUsername, authPassword } = req.body;
+    const { referenceSitemapUrl, testSitemapUrl, allowedLocales = [], excludeGames = true, excludeSports = true, width = 1920, height = 1080, misMatchThreshold = 2.0, hideSelectors = [], authUsername, authPassword, delay = 6000 } = req.body;
 
     if (!referenceSitemapUrl) {
       return res.status(400).json({ success: false, error: 'Reference Sitemap URL is required.' });
     }
 
     const parsedThreshold = parseFloat(misMatchThreshold) || 2.0;
+    const parsedDelay = parseInt(delay) || 6000;
 
     const parsedHideSelectors = Array.isArray(hideSelectors)
       ? hideSelectors
@@ -351,7 +353,7 @@ app.post('/api/compare-sitemap', async (req, res) => {
       basicAuth: basicAuth,
       readyEvent: '',
       readySelector: '',
-      delay: 3000,
+      delay: parsedDelay,
       hideSelectors: parsedHideSelectors,
       removeSelectors: [],
       hoverSelector: '',
