@@ -237,13 +237,17 @@ body {
   position: relative;
   display: flex;
   align-items: center;
+  width: 100%;
 }
 
 .input-icon {
   position: absolute;
   left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
   color: var(--text-dim);
   pointer-events: none;
+  z-index: 2;
 }
 
 input[type="text"],
@@ -254,17 +258,18 @@ input[type="password"] {
   background-color: var(--bg-input);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
-  padding: 12px 14px 12px 42px;
+  padding: 12px 14px;
   color: var(--text-main);
   font-size: 14px;
   font-family: inherit;
   transition: all 0.2s ease;
 }
 
-.input-group:not(.input-wrapper) input[type="text"],
-.input-group:not(.input-wrapper) input[type="number"],
-.input-group:not(.input-wrapper) input[type="password"] {
-  padding-left: 14px;
+.input-wrapper input[type="text"],
+.input-wrapper input[type="url"],
+.input-wrapper input[type="number"],
+.input-wrapper input[type="password"] {
+  padding-left: 42px !important;
 }
 
 input[type="text"]:focus,
