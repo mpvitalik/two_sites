@@ -3,8 +3,8 @@
   "viewports": [
     {
       "label": "desktop",
-      "width": 1920,
-      "height": 1080
+      "width": null,
+      "height": null
     }
   ],
   "onBeforeScript": "playwright/onBefore.js",
@@ -22,7 +22,12 @@
       "readyEvent": "",
       "readySelector": "",
       "delay": 6000,
-      "hideSelectors": [],
+      "hideSelectors": [
+        "[class*=\"winning-zone\"]",
+        "[class*=\"live-bets\"]",
+        "[class*=\"ticker\"]",
+        "[class*=\"banner-timer\"]"
+      ],
       "removeSelectors": [],
       "hoverSelector": "",
       "clickSelector": "",
@@ -32,7 +37,7 @@
       ],
       "selectorExpansion": true,
       "expect": 0,
-      "misMatchThreshold": 3,
+      "misMatchThreshold": 2,
       "requireSameDimensions": true
     }
   ],
