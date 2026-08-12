@@ -292,7 +292,7 @@ app.post('/api/compare', async (req, res) => {
         selectorExpansion: true,
         expect: 0,
         misMatchThreshold: parsedThreshold,
-        requireSameDimensions: true
+        requireSameDimensions: false
       }
     ];
 
@@ -363,7 +363,7 @@ app.post('/api/compare-sitemap', async (req, res) => {
       selectorExpansion: true,
       expect: 0,
       misMatchThreshold: parsedThreshold,
-      requireSameDimensions: true
+      requireSameDimensions: false
     }));
 
     await runBackstopSuite(scenarios, width, height, res);
@@ -375,13 +375,16 @@ app.post('/api/compare-sitemap', async (req, res) => {
 
 // Helper function to build config and run BackstopJS suite
 async function runBackstopSuite(scenarios, width, height, res) {
+  const targetWidth = parseInt(width) || 1920;
+  const targetHeight = parseInt(height) || 1080;
+
   const config = {
     id: 'backstop_web_ui',
     viewports: [
       {
         label: 'desktop',
-        width: parseInt(width),
-        height: parseInt(height)
+        width: targetWidth,
+        height: targetHeight
       }
     ],
     onBeforeScript: 'playwright/onBefore.js',
