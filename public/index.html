@@ -150,8 +150,11 @@
             </div>
 
             <div class="input-group flex-1">
-              <label for="hideSelectors">Приховати динамічні селектори (hideSelectors)</label>
-              <input type="text" id="hideSelectors" placeholder="Наприклад: .carousel, .timer, .live-bets">
+              <label for="hideSelectors">
+                Приховати динамічні селектори (hideSelectors)
+                <button type="button" id="autoHideDynamicBtn" class="preset-btn" style="padding: 2px 8px; font-size: 11px; margin-left: 8px;">+ Приховати живі віджети</button>
+              </label>
+              <input type="text" id="hideSelectors" placeholder="Наприклад: .winning-zone, .live-bets, [class*='timer']">
             </div>
 
             <div class="input-group" style="width: 180px;">

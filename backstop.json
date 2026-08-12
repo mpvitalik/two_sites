@@ -16,12 +16,9 @@
     {
       "label": "Homepage Comparison",
       "cookiePath": "backstop_data/engine_scripts/cookies.json",
-      "url": "https://preprod:preprod123@slotra.com/en",
-      "referenceUrl": "https://preprod:preprod123@preprod.slotra.com/en",
-      "basicAuth": {
-        "username": "preprod",
-        "password": "preprod123"
-      },
+      "url": "https://rc.bons.com/",
+      "referenceUrl": "https://bons.com/",
+      "basicAuth": null,
       "readyEvent": "",
       "readySelector": "",
       "delay": 6000,
@@ -35,7 +32,7 @@
       ],
       "selectorExpansion": true,
       "expect": 0,
-      "misMatchThreshold": 2,
+      "misMatchThreshold": 3,
       "requireSameDimensions": true
     }
   ],

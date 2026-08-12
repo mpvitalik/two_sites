@@ -48,6 +48,19 @@ document.addEventListener('DOMContentLoaded', () => {
   const scenarioLabelInput = document.getElementById('scenarioLabel');
   const misMatchThresholdInput = document.getElementById('misMatchThreshold');
   const hideSelectorsInput = document.getElementById('hideSelectors');
+  const autoHideDynamicBtn = document.getElementById('autoHideDynamicBtn');
+
+  if (autoHideDynamicBtn && hideSelectorsInput) {
+    autoHideDynamicBtn.addEventListener('click', () => {
+      const current = hideSelectorsInput.value.trim();
+      const defaultDynamic = '[class*="winning-zone"], [class*="live-bets"], [class*="ticker"], [class*="banner-timer"]';
+      if (!current) {
+        hideSelectorsInput.value = defaultDynamic;
+      } else if (!current.includes('winning-zone')) {
+        hideSelectorsInput.value = current + ', ' + defaultDynamic;
+      }
+    });
+  }
 
   // Sitemap Filters
   const excludeGamesCheckbox = document.getElementById('excludeGames');
