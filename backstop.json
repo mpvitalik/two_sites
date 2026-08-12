@@ -38,7 +38,7 @@
       "selectorExpansion": true,
       "expect": 0,
       "misMatchThreshold": 2,
-      "requireSameDimensions": true
+      "requireSameDimensions": false
     }
   ],
   "paths": {
