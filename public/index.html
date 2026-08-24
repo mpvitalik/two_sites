@@ -48,6 +48,7 @@
         <!-- Mode Switcher Tabs -->
         <div class="mode-switcher">
           <button type="button" class="mode-btn active" data-mode="single">Дві сторінки</button>
+          <button type="button" class="mode-btn" data-mode="list">Список сторінок</button>
           <button type="button" class="mode-btn" data-mode="sitemap">За файлом sitemap.xml</button>
         </div>
 
@@ -76,6 +77,35 @@
                   <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
                   <input type="url" id="testUrl" placeholder="https://rc.bons.com/" value="https://rc.bons.com/">
                 </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- MODE 2: List Mode Inputs -->
+          <div id="listModeSection" class="mode-section hidden">
+            <div class="input-grid">
+              <div class="input-group">
+                <label for="referenceList">
+                  <span class="label-badge reference-badge">Reference List</span>
+                  Список еталонних сторінок (по 1 посиланню на рядок)
+                </label>
+                <textarea id="referenceList" class="url-list-textarea" rows="7" placeholder="https://bons.com/account/profile/info&#10;https://bons.com/account/profile/history/transactions&#10;https://bons.com/account/profile/history/bonuses"></textarea>
+              </div>
+
+              <div class="input-group">
+                <label for="testList" style="display: flex; align-items: center; justify-content: space-between;">
+                  <span>
+                    <span class="label-badge test-badge">Test List</span>
+                    Список тестових сторінок
+                  </span>
+                  <button type="button" id="addRcPrefixBtn" class="helper-btn" style="padding: 3px 12px; font-weight: 600; font-size: 12px; background: rgba(99, 102, 241, 0.2); border-color: var(--accent-primary);" title="Скопіювати з Еталону та додати 'rc.' до домену">+ "rc."</button>
+                </label>
+                <textarea id="testList" class="url-list-textarea" rows="7" placeholder="https://rc.bons.com/account/profile/info&#10;https://rc.bons.com/account/profile/history/transactions&#10;https://rc.bons.com/account/profile/history/bonuses"></textarea>
+              </div>
+            </div>
+            <div class="list-action-bar" style="margin-top: 10px; display: flex; align-items: center; justify-content: space-between;">
+              <div id="listCountBadge" class="page-count-badge">
+                Всього сторінок для порівняння: <strong id="listCountNumber">0</strong>
               </div>
             </div>
           </div>

@@ -303,6 +303,99 @@ app.post('/api/compare', async (req, res) => {
   }
 });
 
+// API: List Bulk Compare
+app.post('/api/compare-list', async (req, res) => {
+  try {
+    const { referenceUrls = [], testUrls = [], width = 1920, height = 1080, misMatchThreshold = 6.0, hideSelectors = [], authUsername, authPassword, delay = 6000 } = req.body;
+
+    const refList = Array.isArray(referenceUrls)
+      ? referenceUrls.map(u => u.trim()).filter(Boolean)
+      : (typeof referenceUrls === 'string' ? referenceUrls.split('\n').map(u => u.trim()).filter(Boolean) : []);
+
+    const testList = Array.isArray(testUrls)
+      ? testUrls.map(u => u.trim()).filter(Boolean)
+      : (typeof testUrls === 'string' ? testUrls.split('\n').map(u => u.trim()).filter(Boolean) : []);
+
+    if (refList.length === 0) {
+      return res.status(400).json({ success: false, error: 'Список еталонних сторінок порожній.' });
+    }
+
+    const parsedThreshold = parseFloat(misMatchThreshold) || 6.0;
+    const parsedDelay = parseInt(delay) || 6000;
+    const parsedHideSelectors = Array.isArray(hideSelectors)
+      ? hideSelectors
+      : (typeof hideSelectors === 'string' && hideSelectors.trim() ? hideSelectors.split(',').map(s => s.trim()) : []);
+
+    const basicAuth = authUsername ? { username: authUsername, password: authPassword || '' } : null;
+
+    const pairs = [];
+    const counts = {};
+
+    refList.forEach((refUrl, idx) => {
+      let targetTestUrl = testList[idx];
+      if (!targetTestUrl) {
+        // Fallback: auto-generate test URL by inserting rc. into hostname
+        try {
+          const p = new URL(refUrl);
+          if (!p.hostname.startsWith('rc.')) {
+            p.hostname = 'rc.' + p.hostname;
+          }
+          targetTestUrl = p.toString();
+        } catch (e) {
+          targetTestUrl = refUrl;
+        }
+      }
+
+      let label = '';
+      try {
+        label = new URL(refUrl).pathname;
+      } catch (e) {
+        label = `Page ${idx + 1}`;
+      }
+      if (!label || label === '/') label = 'Homepage';
+
+      if (counts[label]) {
+        counts[label]++;
+        label = `${label} (${counts[label]})`;
+      } else {
+        counts[label] = 1;
+      }
+
+      pairs.push({
+        label,
+        referenceUrl: refUrl,
+        url: targetTestUrl
+      });
+    });
+
+    const scenarios = pairs.map(p => ({
+      label: p.label,
+      cookiePath: 'backstop_data/engine_scripts/cookies.json',
+      url: applyAuthToUrl(p.url, authUsername, authPassword),
+      referenceUrl: applyAuthToUrl(p.referenceUrl, authUsername, authPassword),
+      basicAuth: basicAuth,
+      readyEvent: '',
+      readySelector: '',
+      delay: parsedDelay,
+      hideSelectors: parsedHideSelectors,
+      removeSelectors: [],
+      hoverSelector: '',
+      clickSelector: '',
+      postInteractionWait: 0,
+      selectors: ['document'],
+      selectorExpansion: true,
+      expect: 0,
+      misMatchThreshold: parsedThreshold,
+      requireSameDimensions: false
+    }));
+
+    await runBackstopSuite(scenarios, width, height, res);
+  } catch (err) {
+    console.error('List comparison error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // API: Sitemap Bulk Compare
 app.post('/api/compare-sitemap', async (req, res) => {
   try {

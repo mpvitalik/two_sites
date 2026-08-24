@@ -4,9 +4,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // Mode Switcher
   const modeBtns = document.querySelectorAll('.mode-btn');
   const singleModeSection = document.getElementById('singleModeSection');
+  const listModeSection = document.getElementById('listModeSection');
   const sitemapModeSection = document.getElementById('sitemapModeSection');
   const scenarioLabelGroup = document.getElementById('scenarioLabelGroup');
-  let currentMode = 'single'; // 'single' or 'sitemap'
+  let currentMode = 'single'; // 'single', 'list', or 'sitemap'
 
   modeBtns.forEach(btn => {
     btn.addEventListener('click', () => {
@@ -14,12 +15,17 @@ document.addEventListener('DOMContentLoaded', () => {
       btn.classList.add('active');
       currentMode = btn.dataset.mode;
 
+      singleModeSection.classList.add('hidden');
+      listModeSection.classList.add('hidden');
+      sitemapModeSection.classList.add('hidden');
+
       if (currentMode === 'single') {
         singleModeSection.classList.remove('hidden');
-        sitemapModeSection.classList.add('hidden');
         scenarioLabelGroup.classList.remove('hidden');
-      } else {
-        singleModeSection.classList.add('hidden');
+      } else if (currentMode === 'list') {
+        listModeSection.classList.remove('hidden');
+        scenarioLabelGroup.classList.add('hidden');
+      } else if (currentMode === 'sitemap') {
         sitemapModeSection.classList.remove('hidden');
         scenarioLabelGroup.classList.add('hidden');
       }
@@ -43,6 +49,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // Inputs
   const referenceUrlInput = document.getElementById('referenceUrl');
   const testUrlInput = document.getElementById('testUrl');
+  const referenceListInput = document.getElementById('referenceList');
+  const testListInput = document.getElementById('testList');
+  const addRcPrefixBtn = document.getElementById('addRcPrefixBtn');
+  const listCountNumber = document.getElementById('listCountNumber');
   const referenceSitemapUrlInput = document.getElementById('referenceSitemapUrl');
   const testSitemapUrlInput = document.getElementById('testSitemapUrl');
   const scenarioLabelInput = document.getElementById('scenarioLabel');
@@ -62,6 +72,52 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // Helper to format/transform a URL string by inserting "rc." into host
+  function addRcToUrl(urlStr) {
+    if (!urlStr || !urlStr.trim()) return '';
+    let trimmed = urlStr.trim();
+    try {
+      const parsed = new URL(trimmed);
+      if (!parsed.hostname.startsWith('rc.')) {
+        parsed.hostname = 'rc.' + parsed.hostname;
+      }
+      return parsed.toString();
+    } catch (e) {
+      return trimmed.replace(/^(https?:\/\/)(?!rc\.)/, '$1rc.');
+    }
+  }
+
+  // Click handler for + "rc." button
+  if (addRcPrefixBtn) {
+    addRcPrefixBtn.addEventListener('click', () => {
+      const refText = referenceListInput ? referenceListInput.value : '';
+      const testText = testListInput ? testListInput.value : '';
+
+      if (!testText.trim() && refText.trim()) {
+        const lines = refText.split('\n');
+        const transformed = lines.map(line => addRcToUrl(line));
+        testListInput.value = transformed.join('\n');
+      } else if (testText.trim()) {
+        const lines = testText.split('\n');
+        const transformed = lines.map(line => addRcToUrl(line));
+        testListInput.value = transformed.join('\n');
+      }
+      updateListCount();
+    });
+  }
+
+  // Update List count on typing
+  function updateListCount() {
+    if (!referenceListInput) return;
+    const refLines = referenceListInput.value.split('\n').map(l => l.trim()).filter(Boolean);
+    if (listCountNumber) {
+      listCountNumber.textContent = refLines.length;
+    }
+  }
+
+  if (referenceListInput) referenceListInput.addEventListener('input', updateListCount);
+  if (testListInput) testListInput.addEventListener('input', updateListCount);
+
   // Sitemap Filters
   const excludeGamesCheckbox = document.getElementById('excludeGames');
   const excludeSportsCheckbox = document.getElementById('excludeSports');
@@ -76,65 +132,60 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Count Pages Handler
-  countPagesBtn.addEventListener('click', async () => {
-    const referenceSitemapUrl = referenceSitemapUrlInput.value.trim();
-    const testSitemapUrl = testSitemapUrlInput.value.trim();
-
-    if (!referenceSitemapUrl) {
-      alert('Будь ласка, вкажіть URL для Reference Sitemap!');
-      return;
-    }
-
-    try {
-      countPagesBtn.disabled = true;
-      countPagesBtn.innerHTML = '<span>Рахуємо...</span>';
-      pageCountDisplay.classList.add('hidden');
-
+  if (countPagesBtn) {
+    countPagesBtn.addEventListener('click', async () => {
+      const referenceSitemapUrl = referenceSitemapUrlInput.value.trim();
+      const testSitemapUrl = testSitemapUrlInput.value.trim();
       const allowedLocales = getSelectedLocales();
       const excludeGames = excludeGamesCheckbox ? excludeGamesCheckbox.checked : true;
       const excludeSports = excludeSportsCheckbox ? excludeSportsCheckbox.checked : true;
-
       const authUsernameInput = document.getElementById('authUsername');
       const authPasswordInput = document.getElementById('authPassword');
       const authUsername = authUsernameInput ? authUsernameInput.value.trim() : '';
       const authPassword = authPasswordInput ? authPasswordInput.value.trim() : '';
 
-      const response = await fetch('/api/count-sitemap', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          referenceSitemapUrl,
-          testSitemapUrl,
-          allowedLocales,
-          excludeGames,
-          excludeSports,
-          authUsername,
-          authPassword
-        })
-      });
+      if (!referenceSitemapUrl) {
+        alert('Будь ласка, заповніть URL для Reference Sitemap!');
+        return;
+      }
 
-      const text = await response.text();
-      let data;
       try {
-        data = JSON.parse(text);
-      } catch (e) {
-        throw new Error(`Сервер повернув помилку (${response.status}): ${text.slice(0, 150)}`);
+        countPagesBtn.disabled = true;
+        countPagesBtn.textContent = 'Рахуємо...';
+        addLog('Запит на підрахунок сторінок у sitemap.xml...');
+
+        const res = await fetch('/api/count-sitemap', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            referenceSitemapUrl,
+            testSitemapUrl,
+            allowedLocales,
+            excludeGames,
+            excludeSports,
+            authUsername,
+            authPassword
+          })
+        });
+
+        const data = await res.json();
+        if (!data.success) {
+          throw new Error(data.error);
+        }
+
+        pageCountNumber.textContent = data.count;
+        pageCountDisplay.classList.remove('hidden');
+        addLog(`Знайдено ${data.totalFoundInSitemap} URL. Для порівняння вибрано: ${data.count} сторінок.`, 'success');
+
+      } catch (err) {
+        addLog(`Помилка підрахунку сторінок: ${err.message}`, 'error');
+        alert(`Помилка підрахунку сторінок: ${err.message}`);
+      } finally {
+        countPagesBtn.disabled = false;
+        countPagesBtn.textContent = 'Порахувати сторінки';
       }
-
-      if (!data.success) {
-        throw new Error(data.error || 'Помилка підрахунку сторінок');
-      }
-
-      pageCountNumber.textContent = data.count;
-      pageCountDisplay.classList.remove('hidden');
-
-    } catch (err) {
-      alert(`Помилка: ${err.message}`);
-    } finally {
-      countPagesBtn.disabled = false;
-      countPagesBtn.innerHTML = '<span>Порахувати сторінки</span>';
-    }
-  });
+    });
+  }
 
   // Progress Section
   const progressSection = document.getElementById('progressSection');
@@ -201,7 +252,7 @@ document.addEventListener('DOMContentLoaded', () => {
   compareForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    const misMatchThreshold = parseFloat(misMatchThresholdInput ? misMatchThresholdInput.value : 2.0) || 2.0;
+    const misMatchThreshold = parseFloat(misMatchThresholdInput ? misMatchThresholdInput.value : 6.0) || 6.0;
     const hideSelectors = hideSelectorsInput ? hideSelectorsInput.value.trim() : '';
     const authUsernameInput = document.getElementById('authUsername');
     const authPasswordInput = document.getElementById('authPassword');
@@ -228,6 +279,28 @@ document.addEventListener('DOMContentLoaded', () => {
         referenceUrl,
         testUrl,
         label,
+        width: selectedWidth,
+        height: selectedHeight,
+        misMatchThreshold,
+        hideSelectors,
+        authUsername,
+        authPassword,
+        delay
+      };
+
+    } else if (currentMode === 'list') {
+      const refLines = referenceListInput ? referenceListInput.value.split('\n').map(l => l.trim()).filter(Boolean) : [];
+      const testLines = testListInput ? testListInput.value.split('\n').map(l => l.trim()).filter(Boolean) : [];
+
+      if (refLines.length === 0) {
+        alert('Будь ласка, введіть хоча б 1 посилання у список еталонних сторінок (Reference List)!');
+        return;
+      }
+
+      endpoint = '/api/compare-list';
+      payload = {
+        referenceUrls: refLines,
+        testUrls: testLines,
         width: selectedWidth,
         height: selectedHeight,
         misMatchThreshold,
