@@ -13,7 +13,13 @@ let activeChildProcess = null;
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
-app.use('/backstop_data', express.static(path.join(__dirname, 'backstop_data')));
+app.use('/backstop_data', express.static(path.join(__dirname, 'backstop_data'), {
+  setHeaders: (res) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+  }
+}));
 
 // Helper to embed basic auth into URL string with proper encoding
 function applyAuthToUrl(urlStr, username, password) {
@@ -523,6 +529,15 @@ async function runBackstopSuite(scenarios, width, height, res) {
     const reportJsonPath = path.join(__dirname, 'backstop_data', 'bitmaps_test', latestDir, 'report.json');
     if (fs.existsSync(reportJsonPath)) {
       reportData = JSON.parse(fs.readFileSync(reportJsonPath, 'utf8'));
+
+      // Write reportData directly as config.js for the html_report iframe!
+      try {
+        const configJsPath = path.join(__dirname, 'backstop_data', 'html_report', 'config.js');
+        fs.writeFileSync(configJsPath, `report(${JSON.stringify(reportData, null, 2)});`, 'utf8');
+        console.log(`Synced html_report/config.js with latest test run (${latestDir}) containing ${reportData.tests ? reportData.tests.length : 0} test(s).`);
+      } catch (e) {
+        console.error('Failed to sync html_report/config.js:', e.message);
+      }
     }
   }
 
