@@ -7,49 +7,62 @@ module.exports = async (page, scenario, viewport, isReference, browserContext) =
 
   if (siteUsername && sitePassword) {
     try {
-      // Check if user is not authorized (Login button is visible in header)
-      const loginBtnSelector = 'a[href*="login"], button:has-text("Login"), button:has-text("Вхід"), button:has-text("Вход"), .login-btn, [aria-label*="sign in" i]';
-      const loginBtn = await page.$(loginBtnSelector);
+      const currentUrl = page.url();
+      const isUnauthPage = currentUrl.includes('/registration') || currentUrl.includes('/login');
+      const loginBtnSelector = 'a[href*="login"], button:has-text("Login"), button:has-text("Вхід"), button:has-text("Войти"), .login-btn';
 
-      if (loginBtn) {
-        console.log(`[AUTH] User not logged in on ${scenario.label}. Performing on-page login for ${siteUsername}...`);
-        await loginBtn.click().catch(() => {});
-        await page.waitForTimeout(2000);
+      const loginBtn = isUnauthPage ? null : await page.$(loginBtnSelector).catch(() => null);
+
+      if (loginBtn || isUnauthPage) {
+        console.log(`[AUTH] User not logged in on ${scenario.label}. Performing login for ${siteUsername}...`);
+
+        if (loginBtn) {
+          await Promise.all([
+            page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 4000 }).catch(() => {}),
+            loginBtn.click().catch(() => {})
+          ]);
+          await page.waitForTimeout(1500);
+        }
 
         const emailSelector = '#login, #email, input[type="email"], input[id="login"], input[id="email"], input[name="login"]';
         const passwordSelector = '#password, input[type="password"], input[id="password"]';
 
-        const emailInput = await page.$(emailSelector);
+        await page.waitForSelector(emailSelector, { timeout: 4000 }).catch(() => {});
+
+        const emailInput = await page.$(emailSelector).catch(() => null);
         if (emailInput) {
-          await page.focus(emailSelector);
-          await page.fill(emailSelector, siteUsername);
-          await page.dispatchEvent(emailSelector, 'input');
-          await page.dispatchEvent(emailSelector, 'change');
+          try {
+            await page.focus(emailSelector).catch(() => {});
+            await page.fill(emailSelector, siteUsername).catch(() => {});
+            await page.dispatchEvent(emailSelector, 'input').catch(() => {});
+            await page.dispatchEvent(emailSelector, 'change').catch(() => {});
 
-          await page.focus(passwordSelector);
-          await page.fill(passwordSelector, sitePassword);
-          await page.dispatchEvent(passwordSelector, 'input');
-          await page.dispatchEvent(passwordSelector, 'change');
+            await page.focus(passwordSelector).catch(() => {});
+            await page.fill(passwordSelector, sitePassword).catch(() => {});
+            await page.dispatchEvent(passwordSelector, 'input').catch(() => {});
+            await page.dispatchEvent(passwordSelector, 'change').catch(() => {});
 
-          await page.waitForTimeout(500);
+            await page.waitForTimeout(400);
 
-          const submitSelector = 'button[type="submit"], .ui-button_kind-primary1, button:has-text("Login"), button:has-text("Вхід"), button:has-text("Войти")';
-          const submitBtn = await page.$(submitSelector);
-          if (submitBtn) {
-            await submitBtn.click().catch(() => {});
-          } else {
+            const submitSelector = 'button[type="submit"], .ui-button_kind-primary1, button:has-text("Login"), button:has-text("Вхід"), button:has-text("Войти")';
+            const submitBtn = await page.$(submitSelector).catch(() => null);
+            if (submitBtn) {
+              await submitBtn.click().catch(() => {});
+            }
             await page.keyboard.press('Enter').catch(() => {});
+          } catch (fillErr) {
+            console.warn('[AUTH] Fill error:', fillErr.message);
           }
 
-          // Wait for login request, cookies, and UI transition to user account state
-          await page.waitForTimeout(6000);
+          // Wait 3.5s for login API response & DOM update
+          await page.waitForTimeout(3500);
           console.log(`[AUTH] On-page login complete for ${scenario.label}`);
         }
       } else {
         console.log(`[AUTH] User is already authorized on ${scenario.label}`);
       }
     } catch (err) {
-      console.warn('[AUTH] On-page login warning:', err.message);
+      console.warn('[AUTH] Authorization warning:', err.message);
     }
   }
 
