@@ -493,7 +493,7 @@ async function runBackstopSuite(scenarios, width, height, res) {
       html_report: 'backstop_data/html_report',
       ci_report: 'backstop_data/ci_report'
     },
-    report: ['CI'],
+    report: ['CI', 'browser'],
     engine: 'playwright',
     engineOptions: {
       args: ['--no-sandbox']
