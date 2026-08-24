@@ -53,24 +53,34 @@ module.exports = async (page, scenario, viewport, isReference) => {
       await page.waitForTimeout(2000);
 
       const emailSelector = '#login, #email, input[type="email"], input[id="login"], input[id="email"], input[name="login"]';
-      const hasEmailInput = await page.$(emailSelector);
+      const passwordSelector = '#password, input[type="password"], input[id="password"]';
 
-      if (hasEmailInput) {
+      const emailInput = await page.$(emailSelector);
+
+      if (emailInput) {
+        // Focus, fill, and dispatch events to trigger React/Vue state updates and un-disable submit button
+        await page.focus(emailSelector);
         await page.fill(emailSelector, username);
-        const passwordSelector = '#password, input[type="password"], input[id="password"]';
+        await page.dispatchEvent(emailSelector, 'input');
+        await page.dispatchEvent(emailSelector, 'change');
+
+        await page.focus(passwordSelector);
         await page.fill(passwordSelector, password);
+        await page.dispatchEvent(passwordSelector, 'input');
+        await page.dispatchEvent(passwordSelector, 'change');
+
+        await page.waitForTimeout(500);
 
         const submitSelector = 'button[type="submit"], .ui-button_kind-primary1, button:has-text("Login"), button:has-text("Вхід"), button:has-text("Войти")';
         const submitBtn = await page.$(submitSelector);
         if (submitBtn) {
-          await submitBtn.click();
-        } else {
-          await page.keyboard.press('Enter');
+          await submitBtn.click().catch(() => {});
         }
+        await page.keyboard.press('Enter').catch(() => {});
 
-        // Wait for login request, cookies, and modal to close
+        // Wait for login request, auth cookies, and modal detachment
         await page.waitForTimeout(6000);
-        await page.waitForSelector('#login, input[id="login"]', { state: 'detached', timeout: 4000 }).catch(() => {});
+        await page.waitForSelector('#login, input[id="login"], .ui-modal', { state: 'detached', timeout: 5000 }).catch(() => {});
         console.log(`[AUTH] Site user login completed for ${origin}`);
       }
     } catch (err) {

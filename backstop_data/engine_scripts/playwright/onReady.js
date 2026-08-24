@@ -48,12 +48,13 @@ module.exports = async (page, scenario, viewport, isReference, browserContext) =
     });
   } catch (e) {}
 
-  // 4. Force hide lingering splash loaders, login modals, and dark backdrops, then scroll to top
+  // 4. Force hide lingering splash loaders, registration/login modals, and dark backdrops, then scroll to top
   try {
     await page.evaluate(() => {
       const selectors = [
         '.splash-screen', '.app-preloader', '#preloader', '[class*="preloader"]', '[class*="splash-loader"]',
-        '[class*="login-modal"]', '[class*="auth-modal"]', '.ui-modal', '[class*="modal-backdrop"]', '[class*="overlay-backdrop"]'
+        '[class*="login-modal"]', '[class*="auth-modal"]', '[class*="registration"]', '[class*="signup"]',
+        '.ui-modal', '[class*="modal-backdrop"]', '[class*="overlay-backdrop"]', '[class*="dimmer"]'
       ];
       const elements = document.querySelectorAll(selectors.join(', '));
       elements.forEach(el => {
