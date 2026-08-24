@@ -354,9 +354,14 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       if (currentMode === 'single') {
         addLog(`Режим: Порівняння 2-х сторінок`, 'info');
+      } else if (currentMode === 'list') {
+        addLog(`Режим: Порівняння за списком сторінок`, 'info');
+        addLog(`Кількість сторінок у списку: ${payload.referenceUrls ? payload.referenceUrls.length : 0}`, 'info');
       } else {
         addLog(`Режим: Порівняння за sitemap.xml`, 'info');
-        addLog(`Обрані локалі: ${payload.allowedLocales.join(', ') || 'усі'}`, 'info');
+        if (payload.allowedLocales && Array.isArray(payload.allowedLocales)) {
+          addLog(`Обрані локалі: ${payload.allowedLocales.join(', ') || 'усі'}`, 'info');
+        }
         addLog(`Ігнорувати ігри: ${payload.excludeGames ? 'Так' : 'Ні'}`, 'info');
         addLog(`Ігнорувати спорт: ${payload.excludeSports ? 'Так' : 'Ні'}`, 'info');
       }
