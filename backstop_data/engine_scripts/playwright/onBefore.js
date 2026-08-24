@@ -68,7 +68,9 @@ module.exports = async (page, scenario, viewport, isReference) => {
           await page.keyboard.press('Enter');
         }
 
-        await page.waitForTimeout(4000);
+        // Wait for login request, cookies, and modal to close
+        await page.waitForTimeout(6000);
+        await page.waitForSelector('#login, input[id="login"]', { state: 'detached', timeout: 4000 }).catch(() => {});
         console.log(`[AUTH] Site user login completed for ${origin}`);
       }
     } catch (err) {

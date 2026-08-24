@@ -14,33 +14,16 @@
   },
   "scenarios": [
     {
-      "label": "/casino/last_played",
+      "label": "Homepage Comparison",
       "cookiePath": "backstop_data/engine_scripts/cookies.json",
-      "url": "https://rc.bons.com/casino/last_played",
-      "referenceUrl": "https://bons.com/casino/last_played",
-      "basicAuth": null,
-      "readyEvent": "",
-      "readySelector": "",
-      "delay": 6000,
-      "hideSelectors": [],
-      "removeSelectors": [],
-      "hoverSelector": "",
-      "clickSelector": "",
-      "postInteractionWait": 0,
-      "selectors": [
-        "document"
-      ],
-      "selectorExpansion": true,
-      "expect": 0,
-      "misMatchThreshold": 6,
-      "requireSameDimensions": false
-    },
-    {
-      "label": "/casino/likedgames",
-      "cookiePath": "backstop_data/engine_scripts/cookies.json",
-      "url": "https://rc.bons.com/casino/likedgames",
-      "referenceUrl": "https://bons.com/casino/likedgames",
-      "basicAuth": null,
+      "url": "https://ivanaleksandrov2012%40gmail.com:qqq111qqq@rc.bons.com/account/profile/info",
+      "referenceUrl": "https://ivanaleksandrov2012%40gmail.com:qqq111qqq@bons.com/account/profile/info",
+      "basicAuth": {
+        "username": "ivanaleksandrov2012@gmail.com",
+        "password": "qqq111qqq"
+      },
+      "authUsername": "ivanaleksandrov2012@gmail.com",
+      "authPassword": "qqq111qqq",
       "readyEvent": "",
       "readySelector": "",
       "delay": 6000,
