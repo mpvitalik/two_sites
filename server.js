@@ -5,6 +5,7 @@ const path = require('path');
 const https = require('https');
 const http = require('http');
 const { request: playwrightRequest } = require('playwright');
+const backstop = require('backstopjs');
 
 const app = express();
 const PORT = process.env.PORT || 3030;
@@ -340,7 +341,6 @@ app.post('/api/compare-list', async (req, res) => {
     refList.forEach((refUrl, idx) => {
       let targetTestUrl = testList[idx];
       if (!targetTestUrl) {
-        // Fallback: auto-generate test URL by inserting rc. into hostname
         try {
           const p = new URL(refUrl);
           if (!p.hostname.startsWith('rc.')) {
@@ -472,7 +472,7 @@ app.post('/api/compare-sitemap', async (req, res) => {
   }
 });
 
-// Helper function to build config and run BackstopJS suite
+// Helper function to build config and run BackstopJS suite using native JS API
 async function runBackstopSuite(scenarios, width, height, res) {
   const targetWidth = parseInt(width) || 1920;
   const targetHeight = parseInt(height) || 1080;
@@ -514,12 +514,16 @@ async function runBackstopSuite(scenarios, width, height, res) {
   fs.writeFileSync(path.join(__dirname, 'backstop.json'), JSON.stringify(config, null, 2));
 
   console.log(`Running backstop reference for ${scenarios.length} scenario(s)...`);
-  const refResult = await runCommand('npx backstop reference', __dirname);
+  await backstop('reference', { config }).catch(e => console.warn('Reference run warning:', e.message));
 
   console.log(`Running backstop test for ${scenarios.length} scenario(s)...`);
-  const testResult = await runCommand('npx backstop test', __dirname);
+  try {
+    await backstop('test', { config });
+  } catch (err) {
+    console.log('Backstop test completed with comparison report');
+  }
 
-  // Read report JSON
+  // Read report JSON and sync html_report/config.js
   const testDirs = fs.readdirSync(path.join(__dirname, 'backstop_data', 'bitmaps_test')).filter(f => f !== '.DS_Store' && fs.statSync(path.join(__dirname, 'backstop_data', 'bitmaps_test', f)).isDirectory());
   testDirs.sort().reverse();
 
@@ -545,19 +549,15 @@ async function runBackstopSuite(scenarios, width, height, res) {
     success: true,
     totalScenarios: scenarios.length,
     reportData,
-    reportUrl: '/backstop_data/html_report/index.html',
-    logs: {
-      referenceLogs: refResult.stdout,
-      testLogs: testResult.stdout
-    }
+    reportUrl: '/backstop_data/html_report/index.html'
   });
 }
 
 // Endpoint to approve test results
 app.post('/api/approve', async (req, res) => {
   try {
-    const result = await runCommand('npx backstop approve', __dirname);
-    res.json({ success: true, stdout: result.stdout });
+    await backstop('approve', { configPath: path.join(__dirname, 'backstop.json') });
+    res.json({ success: true, message: 'Тестові скріншоти успішно затверджено як новий еталон!' });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
