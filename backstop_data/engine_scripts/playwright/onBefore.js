@@ -1,90 +1,55 @@
+const fs = require('fs');
+const path = require('path');
+
 module.exports = async (page, scenario, viewport, isReference) => {
   const context = page.context ? page.context() : null;
-  if (context) {
-    await require('./loadCookies')(context, scenario);
-  }
 
-  let username = scenario.authUsername || (scenario.basicAuth ? scenario.basicAuth.username : '');
-  let password = scenario.authPassword || (scenario.basicAuth ? scenario.basicAuth.password : '');
+  // 1. HTTP Basic Auth (for Nginx 401 wall only)
+  const httpUsername = scenario.httpAuthUsername || (scenario.basicAuth ? scenario.basicAuth.username : '');
+  const httpPassword = scenario.httpAuthPassword || (scenario.basicAuth ? scenario.basicAuth.password : '');
 
-  const targetUrl = (isReference && scenario.referenceUrl) ? scenario.referenceUrl : scenario.url;
-
-  if (!username && targetUrl) {
+  if (httpUsername && context && typeof context.setHTTPCredentials === 'function') {
     try {
-      const parsed = new URL(targetUrl);
-      if (parsed.username) {
-        username = decodeURIComponent(parsed.username);
-        password = decodeURIComponent(parsed.password || '');
-      }
-    } catch (e) {}
-  }
-
-  // 1. HTTP Basic Auth
-  if (username) {
-    const credentials = Buffer.from(`${username}:${password || ''}`).toString('base64');
-    try {
-      if (context && typeof context.setHTTPCredentials === 'function') {
-        await context.setHTTPCredentials({ username, password: password || '' });
-      }
-      if (typeof page.setExtraHTTPHeaders === 'function') {
-        await page.setExtraHTTPHeaders({
-          'Authorization': `Basic ${credentials}`
-        });
-      }
-      if (typeof page.route === 'function') {
-        await page.route('**/*', async (route) => {
-          const headers = { ...route.request().headers() };
-          headers['authorization'] = `Basic ${credentials}`;
-          await route.continue({ headers });
-        });
-      }
+      await context.setHTTPCredentials({ username: httpUsername, password: httpPassword || '' });
     } catch (err) {}
   }
 
-  // 2. Automated Web Site User Login
-  if (username && password && targetUrl) {
+  // 2. Load pre-authenticated storageState (cookies + localStorage)
+  const rootDir = process.cwd();
+  const refStatePath = path.join(rootDir, 'backstop_data', 'engine_scripts', 'cookies_reference.json');
+  const testStatePath = path.join(rootDir, 'backstop_data', 'engine_scripts', 'cookies_test.json');
+  const fallbackPath = path.join(rootDir, 'backstop_data', 'engine_scripts', 'cookies.json');
+
+  const targetStatePath = isReference
+    ? (fs.existsSync(refStatePath) ? refStatePath : fallbackPath)
+    : (fs.existsSync(testStatePath) ? testStatePath : fallbackPath);
+
+  if (fs.existsSync(targetStatePath) && context) {
     try {
-      const parsedUrl = new URL(targetUrl);
-      const origin = `${parsedUrl.protocol}//${parsedUrl.host}`;
-      const loginUrl = `${origin}/login`;
+      const stateContent = fs.readFileSync(targetStatePath, 'utf8');
+      const storageState = JSON.parse(stateContent);
 
-      console.log(`[AUTH] Navigating to ${loginUrl} to log in user ${username}...`);
-      await page.goto(loginUrl, { waitUntil: 'domcontentloaded', timeout: 25000 }).catch(() => {});
-      await page.waitForTimeout(2000);
+      if (storageState.cookies && Array.isArray(storageState.cookies) && storageState.cookies.length > 0) {
+        await context.addCookies(storageState.cookies).catch(() => {});
+      }
 
-      const emailSelector = '#login, #email, input[type="email"], input[id="login"], input[id="email"], input[name="login"]';
-      const passwordSelector = '#password, input[type="password"], input[id="password"]';
-
-      const emailInput = await page.$(emailSelector);
-
-      if (emailInput) {
-        // Focus, fill, and dispatch events to trigger React/Vue state updates and un-disable submit button
-        await page.focus(emailSelector);
-        await page.fill(emailSelector, username);
-        await page.dispatchEvent(emailSelector, 'input');
-        await page.dispatchEvent(emailSelector, 'change');
-
-        await page.focus(passwordSelector);
-        await page.fill(passwordSelector, password);
-        await page.dispatchEvent(passwordSelector, 'input');
-        await page.dispatchEvent(passwordSelector, 'change');
-
-        await page.waitForTimeout(500);
-
-        const submitSelector = 'button[type="submit"], .ui-button_kind-primary1, button:has-text("Login"), button:has-text("Вхід"), button:has-text("Войти")';
-        const submitBtn = await page.$(submitSelector);
-        if (submitBtn) {
-          await submitBtn.click().catch(() => {});
+      if (storageState.origins && Array.isArray(storageState.origins)) {
+        for (const originState of storageState.origins) {
+          if (originState.localStorage && Array.isArray(originState.localStorage) && originState.localStorage.length > 0) {
+            await page.addInitScript(({ targetOrigin, entries }) => {
+              try {
+                if (window.location.origin === targetOrigin || targetOrigin.includes(window.location.hostname)) {
+                  for (const entry of entries) {
+                    window.localStorage.setItem(entry.name, entry.value);
+                  }
+                }
+              } catch (e) {}
+            }, { targetOrigin: originState.origin, entries: originState.localStorage }).catch(() => {});
+          }
         }
-        await page.keyboard.press('Enter').catch(() => {});
-
-        // Wait for login request, auth cookies, and modal detachment
-        await page.waitForTimeout(6000);
-        await page.waitForSelector('#login, input[id="login"], .ui-modal', { state: 'detached', timeout: 5000 }).catch(() => {});
-        console.log(`[AUTH] Site user login completed for ${origin}`);
       }
     } catch (err) {
-      console.warn('[AUTH] Site login warning:', err.message);
+      console.warn('StorageState load warning:', err.message);
     }
   }
 };

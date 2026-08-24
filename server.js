@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 const http = require('http');
-const { request: playwrightRequest } = require('playwright');
+const { request: playwrightRequest, chromium } = require('playwright');
 const backstop = require('backstopjs');
 
 const app = express();
@@ -22,22 +22,8 @@ app.use('/backstop_data', express.static(path.join(__dirname, 'backstop_data'), 
   }
 }));
 
-// Helper to embed basic auth into URL string with proper encoding
-function applyAuthToUrl(urlStr, username, password) {
-  if (!username) return urlStr;
-  try {
-    const parsed = new URL(urlStr);
-    parsed.username = encodeURIComponent(username);
-    parsed.password = encodeURIComponent(password || '');
-    return parsed.toString();
-  } catch (e) {
-    return urlStr;
-  }
-}
-
 // Helper to fetch text content using Playwright HTTP client with fallback to native node http
 async function fetchUrlContent(url, username, password) {
-  const targetUrl = applyAuthToUrl(url, username, password);
   const extraHeaders = {
     'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36',
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
@@ -52,14 +38,14 @@ async function fetchUrlContent(url, username, password) {
       extraHTTPHeaders: extraHeaders,
       ignoreHTTPSErrors: true
     });
-    const res = await apiReq.get(targetUrl, { timeout: 15000 });
+    const res = await apiReq.get(url, { timeout: 15000 });
     const text = await res.text();
     await apiReq.dispose();
     if (res.status() === 200 && text && text.trim().length > 0) {
       return text;
     }
   } catch (e) {
-    console.warn(`Playwright fetch failed for ${targetUrl}, trying fallback:`, e.message);
+    console.warn(`Playwright fetch failed for ${url}, trying fallback:`, e.message);
   }
 
   // Fallback to native https/http module
@@ -68,12 +54,12 @@ async function fetchUrlContent(url, username, password) {
       const options = {
         headers: extraHeaders
       };
-      const client = targetUrl.startsWith('https') ? https : http;
-      client.get(targetUrl, options, (res) => {
+      const client = url.startsWith('https') ? https : http;
+      client.get(url, options, (res) => {
         if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
           let redirectUrl = res.headers.location;
           if (redirectUrl.startsWith('/')) {
-            const parsed = new URL(targetUrl);
+            const parsed = new URL(url);
             redirectUrl = `${parsed.protocol}//${parsed.host}${redirectUrl}`;
           }
           return fetchUrlContent(redirectUrl, username, password).then(resolve).catch(reject);
@@ -190,17 +176,79 @@ function pairSitemapUrls(refUrls, testSitemapUrl, testUrls = []) {
   return pairs;
 }
 
-// Utility to run a command as Promise and track active child process
-function runCommand(command, cwd) {
-  return new Promise((resolve, reject) => {
-    const child = exec(command, { cwd }, (error, stdout, stderr) => {
-      if (activeChildProcess === child) {
-        activeChildProcess = null;
-      }
-      resolve({ error, stdout, stderr });
-    });
-    activeChildProcess = child;
+// Dedicated One-Time Login Helper using Playwright
+async function performOneTimeSiteLogin(origin, username, password, httpAuthUsername, httpAuthPassword, storageStatePath) {
+  const extraHeaders = {};
+  if (httpAuthUsername) {
+    extraHeaders['Authorization'] = 'Basic ' + Buffer.from(`${httpAuthUsername}:${httpAuthPassword || ''}`).toString('base64');
+  }
+
+  const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
+  const context = await browser.newContext({
+    extraHTTPHeaders: extraHeaders,
+    ignoreHTTPSErrors: true
   });
+
+  if (httpAuthUsername) {
+    await context.setHTTPCredentials({ username: httpAuthUsername, password: httpAuthPassword || '' });
+  }
+
+  const page = await context.newPage();
+  const loginUrl = `${origin.replace(/\/$/, '')}/login`;
+
+  console.log(`[ONE-TIME-LOGIN] Navigating to ${loginUrl} for user ${username}...`);
+  await page.goto(loginUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  await page.waitForTimeout(2000);
+
+  const emailSelector = '#login, input[type="email"], input[id="login"], input[id="email"], input[name="login"]';
+  const passwordSelector = '#password, input[type="password"], input[id="password"]';
+
+  const emailInput = await page.$(emailSelector);
+  if (!emailInput) {
+    await browser.close();
+    throw new Error(`Не вдалося знайти поле введення логіна на ${loginUrl}`);
+  }
+
+  await page.focus(emailSelector);
+  await page.fill(emailSelector, username);
+  await page.dispatchEvent(emailSelector, 'input');
+  await page.dispatchEvent(emailSelector, 'change');
+
+  await page.focus(passwordSelector);
+  await page.fill(passwordSelector, password);
+  await page.dispatchEvent(passwordSelector, 'input');
+  await page.dispatchEvent(passwordSelector, 'change');
+
+  await page.waitForTimeout(500);
+
+  const submitSelector = 'button[type="submit"], .ui-button_kind-primary1, button:has-text("Login"), button:has-text("Вхід"), button:has-text("Войти")';
+  const submitBtn = await page.$(submitSelector);
+
+  const loginResponsePromise = page.waitForResponse(
+    res => res.url().includes('/user/login') || res.url().includes('/auth'),
+    { timeout: 12000 }
+  ).catch(() => null);
+
+  if (submitBtn) {
+    await submitBtn.click();
+  } else {
+    await page.keyboard.press('Enter');
+  }
+
+  const loginRes = await loginResponsePromise;
+  await page.waitForTimeout(4500);
+
+  const currentUrl = page.url();
+  if (currentUrl.includes('/registration') && (!loginRes || loginRes.status() !== 200)) {
+    await browser.close();
+    throw new Error(`Авторизація на ${origin} не вдалася. Перевірте логін та пароль.`);
+  }
+
+  // Save complete Playwright storageState (cookies + localStorage)
+  await context.storageState({ path: storageStatePath });
+  console.log(`[ONE-TIME-LOGIN] StorageState saved to ${storageStatePath}`);
+
+  await browser.close();
 }
 
 // API: Stop active comparison process
@@ -221,7 +269,7 @@ app.post('/api/stop', (req, res) => {
 // API: Count Sitemap Pages
 app.post('/api/count-sitemap', async (req, res) => {
   try {
-    const { referenceSitemapUrl, testSitemapUrl, allowedLocales = [], excludeGames = true, excludeSports = true, authUsername, authPassword } = req.body;
+    const { referenceSitemapUrl, testSitemapUrl, allowedLocales = [], excludeGames = true, excludeSports = true, httpAuthUsername, httpAuthPassword } = req.body;
 
     if (!referenceSitemapUrl) {
       return res.status(400).json({ success: false, error: 'Reference Sitemap URL is required.' });
@@ -229,7 +277,7 @@ app.post('/api/count-sitemap', async (req, res) => {
 
     let refXml = '';
     try {
-      refXml = await fetchUrlContent(referenceSitemapUrl, authUsername, authPassword);
+      refXml = await fetchUrlContent(referenceSitemapUrl, httpAuthUsername, httpAuthPassword);
     } catch (err) {
       return res.status(400).json({ success: false, error: `Не вдалося завантажити Reference Sitemap: ${err.message}` });
     }
@@ -242,7 +290,7 @@ app.post('/api/count-sitemap', async (req, res) => {
     let testUrls = [];
     if (testSitemapUrl) {
       try {
-        const testXml = await fetchUrlContent(testSitemapUrl, authUsername, authPassword);
+        const testXml = await fetchUrlContent(testSitemapUrl, httpAuthUsername, httpAuthPassword);
         testUrls = extractSitemapUrls(testXml);
       } catch (e) {}
     }
@@ -265,7 +313,7 @@ app.post('/api/count-sitemap', async (req, res) => {
 // API: Single Pair Compare
 app.post('/api/compare', async (req, res) => {
   try {
-    const { referenceUrl, testUrl, width = 1920, height = 1080, label = 'Custom Comparison', misMatchThreshold = 6.0, hideSelectors = [], authUsername, authPassword, delay = 6000 } = req.body;
+    const { referenceUrl, testUrl, width = 1920, height = 1080, label = 'Custom Comparison', misMatchThreshold = 6.0, hideSelectors = [], siteUserUsername, siteUserPassword, httpAuthUsername, httpAuthPassword, delay = 6000 } = req.body;
 
     if (!referenceUrl || !testUrl) {
       return res.status(400).json({ success: false, error: 'Reference and Test URLs are required.' });
@@ -278,17 +326,17 @@ app.post('/api/compare', async (req, res) => {
       ? hideSelectors
       : (typeof hideSelectors === 'string' && hideSelectors.trim() ? hideSelectors.split(',').map(s => s.trim()) : []);
 
-    const basicAuth = authUsername ? { username: authUsername, password: authPassword || '' } : null;
+    const basicAuth = httpAuthUsername ? { username: httpAuthUsername, password: httpAuthPassword || '' } : null;
 
     const scenarios = [
       {
         label: label || 'Custom Comparison',
-        cookiePath: 'backstop_data/engine_scripts/cookies.json',
-        url: applyAuthToUrl(testUrl, authUsername, authPassword),
-        referenceUrl: applyAuthToUrl(referenceUrl, authUsername, authPassword),
+        cookiePath: 'backstop_data/engine_scripts/cookies_reference.json',
+        url: testUrl,
+        referenceUrl: referenceUrl,
         basicAuth: basicAuth,
-        authUsername: authUsername || '',
-        authPassword: authPassword || '',
+        httpAuthUsername: httpAuthUsername || '',
+        httpAuthPassword: httpAuthPassword || '',
         readyEvent: '',
         readySelector: '',
         delay: parsedDelay,
@@ -305,7 +353,7 @@ app.post('/api/compare', async (req, res) => {
       }
     ];
 
-    await runBackstopSuite(scenarios, width, height, res);
+    await runBackstopSuite(scenarios, width, height, siteUserUsername, siteUserPassword, httpAuthUsername, httpAuthPassword, res);
   } catch (err) {
     console.error('Comparison error:', err);
     res.status(500).json({ success: false, error: err.message });
@@ -315,7 +363,7 @@ app.post('/api/compare', async (req, res) => {
 // API: List Bulk Compare
 app.post('/api/compare-list', async (req, res) => {
   try {
-    const { referenceUrls = [], testUrls = [], width = 1920, height = 1080, misMatchThreshold = 6.0, hideSelectors = [], authUsername, authPassword, delay = 6000 } = req.body;
+    const { referenceUrls = [], testUrls = [], width = 1920, height = 1080, misMatchThreshold = 6.0, hideSelectors = [], siteUserUsername, siteUserPassword, httpAuthUsername, httpAuthPassword, delay = 6000 } = req.body;
 
     const refList = Array.isArray(referenceUrls)
       ? referenceUrls.map(u => u.trim()).filter(Boolean)
@@ -335,7 +383,7 @@ app.post('/api/compare-list', async (req, res) => {
       ? hideSelectors
       : (typeof hideSelectors === 'string' && hideSelectors.trim() ? hideSelectors.split(',').map(s => s.trim()) : []);
 
-    const basicAuth = authUsername ? { username: authUsername, password: authPassword || '' } : null;
+    const basicAuth = httpAuthUsername ? { username: httpAuthUsername, password: httpAuthPassword || '' } : null;
 
     const pairs = [];
     const counts = {};
@@ -378,12 +426,12 @@ app.post('/api/compare-list', async (req, res) => {
 
     const scenarios = pairs.map(p => ({
       label: p.label,
-      cookiePath: 'backstop_data/engine_scripts/cookies.json',
-      url: applyAuthToUrl(p.url, authUsername, authPassword),
-      referenceUrl: applyAuthToUrl(p.referenceUrl, authUsername, authPassword),
+      cookiePath: 'backstop_data/engine_scripts/cookies_reference.json',
+      url: p.url,
+      referenceUrl: p.referenceUrl,
       basicAuth: basicAuth,
-      authUsername: authUsername || '',
-      authPassword: authPassword || '',
+      httpAuthUsername: httpAuthUsername || '',
+      httpAuthPassword: httpAuthPassword || '',
       readyEvent: '',
       readySelector: '',
       delay: parsedDelay,
@@ -399,7 +447,7 @@ app.post('/api/compare-list', async (req, res) => {
       requireSameDimensions: false
     }));
 
-    await runBackstopSuite(scenarios, width, height, res);
+    await runBackstopSuite(scenarios, width, height, siteUserUsername, siteUserPassword, httpAuthUsername, httpAuthPassword, res);
   } catch (err) {
     console.error('List comparison error:', err);
     res.status(500).json({ success: false, error: err.message });
@@ -409,7 +457,7 @@ app.post('/api/compare-list', async (req, res) => {
 // API: Sitemap Bulk Compare
 app.post('/api/compare-sitemap', async (req, res) => {
   try {
-    const { referenceSitemapUrl, testSitemapUrl, allowedLocales = [], excludeGames = true, excludeSports = true, width = 1920, height = 1080, misMatchThreshold = 6.0, hideSelectors = [], authUsername, authPassword, delay = 6000 } = req.body;
+    const { referenceSitemapUrl, testSitemapUrl, allowedLocales = [], excludeGames = true, excludeSports = true, width = 1920, height = 1080, misMatchThreshold = 6.0, hideSelectors = [], siteUserUsername, siteUserPassword, httpAuthUsername, httpAuthPassword, delay = 6000 } = req.body;
 
     if (!referenceSitemapUrl) {
       return res.status(400).json({ success: false, error: 'Reference Sitemap URL is required.' });
@@ -424,7 +472,7 @@ app.post('/api/compare-sitemap', async (req, res) => {
 
     let refXml = '';
     try {
-      refXml = await fetchUrlContent(referenceSitemapUrl, authUsername, authPassword);
+      refXml = await fetchUrlContent(referenceSitemapUrl, httpAuthUsername, httpAuthPassword);
     } catch (err) {
       return res.status(400).json({ success: false, error: `Не вдалося завантажити Reference Sitemap: ${err.message}` });
     }
@@ -434,7 +482,7 @@ app.post('/api/compare-sitemap', async (req, res) => {
     let testUrls = [];
     if (testSitemapUrl) {
       try {
-        const testXml = await fetchUrlContent(testSitemapUrl, authUsername, authPassword);
+        const testXml = await fetchUrlContent(testSitemapUrl, httpAuthUsername, httpAuthPassword);
         testUrls = extractSitemapUrls(testXml);
       } catch (e) {}
     }
@@ -446,16 +494,16 @@ app.post('/api/compare-sitemap', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Не знайдено жодної пари сторінок для порівняння після застосування фільтрів.' });
     }
 
-    const basicAuth = authUsername ? { username: authUsername, password: authPassword || '' } : null;
+    const basicAuth = httpAuthUsername ? { username: httpAuthUsername, password: httpAuthPassword || '' } : null;
 
     const scenarios = pairs.map(p => ({
       label: p.label,
-      cookiePath: 'backstop_data/engine_scripts/cookies.json',
-      url: applyAuthToUrl(p.url, authUsername, authPassword),
-      referenceUrl: applyAuthToUrl(p.referenceUrl, authUsername, authPassword),
+      cookiePath: 'backstop_data/engine_scripts/cookies_reference.json',
+      url: p.url,
+      referenceUrl: p.referenceUrl,
       basicAuth: basicAuth,
-      authUsername: authUsername || '',
-      authPassword: authPassword || '',
+      httpAuthUsername: httpAuthUsername || '',
+      httpAuthPassword: httpAuthPassword || '',
       readyEvent: '',
       readySelector: '',
       delay: parsedDelay,
@@ -471,7 +519,7 @@ app.post('/api/compare-sitemap', async (req, res) => {
       requireSameDimensions: false
     }));
 
-    await runBackstopSuite(scenarios, width, height, res);
+    await runBackstopSuite(scenarios, width, height, siteUserUsername, siteUserPassword, httpAuthUsername, httpAuthPassword, res);
   } catch (err) {
     console.error('Sitemap comparison error:', err);
     res.status(500).json({ success: false, error: err.message });
@@ -479,9 +527,35 @@ app.post('/api/compare-sitemap', async (req, res) => {
 });
 
 // Helper function to build config and run BackstopJS suite using native JS API
-async function runBackstopSuite(scenarios, width, height, res) {
+async function runBackstopSuite(scenarios, width, height, siteUserUsername, siteUserPassword, httpAuthUsername, httpAuthPassword, res) {
   const targetWidth = parseInt(width) || 1920;
   const targetHeight = parseInt(height) || 1080;
+
+  // Execute one-time login if site user credentials are provided
+  if (siteUserUsername && siteUserPassword && scenarios.length > 0) {
+    const firstRefUrl = scenarios[0].referenceUrl;
+    const firstTestUrl = scenarios[0].url;
+
+    try {
+      const refOrigin = new URL(firstRefUrl).origin;
+      const testOrigin = new URL(firstTestUrl).origin;
+
+      const refStatePath = path.join(__dirname, 'backstop_data', 'engine_scripts', 'cookies_reference.json');
+      const testStatePath = path.join(__dirname, 'backstop_data', 'engine_scripts', 'cookies_test.json');
+
+      console.log(`Performing one-time login for Reference origin: ${refOrigin}`);
+      await performOneTimeSiteLogin(refOrigin, siteUserUsername, siteUserPassword, httpAuthUsername, httpAuthPassword, refStatePath);
+
+      console.log(`Performing one-time login for Test origin: ${testOrigin}`);
+      await performOneTimeSiteLogin(testOrigin, siteUserUsername, siteUserPassword, httpAuthUsername, httpAuthPassword, testStatePath);
+
+    } catch (authErr) {
+      console.error('One-time login failed:', authErr.message);
+      return res.status(400).json({ success: false, error: `Авторизація на сайті не вдалася: ${authErr.message}` });
+    }
+  }
+
+  const asyncLimit = (siteUserUsername && siteUserPassword) ? 1 : 5;
 
   const config = {
     id: 'backstop_web_ui',
@@ -510,7 +584,7 @@ async function runBackstopSuite(scenarios, width, height, res) {
     engineOptions: {
       args: ['--no-sandbox']
     },
-    asyncCaptureLimit: 5,
+    asyncCaptureLimit: asyncLimit,
     asyncCompareLimit: 50,
     debug: false,
     debugWindow: false

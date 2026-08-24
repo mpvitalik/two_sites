@@ -254,10 +254,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const misMatchThreshold = parseFloat(misMatchThresholdInput ? misMatchThresholdInput.value : 6.0) || 6.0;
     const hideSelectors = hideSelectorsInput ? hideSelectorsInput.value.trim() : '';
-    const authUsernameInput = document.getElementById('authUsername');
-    const authPasswordInput = document.getElementById('authPassword');
-    const authUsername = authUsernameInput ? authUsernameInput.value.trim() : '';
-    const authPassword = authPasswordInput ? authPasswordInput.value.trim() : '';
+
+    const siteUserUsernameInput = document.getElementById('siteUserUsername');
+    const siteUserPasswordInput = document.getElementById('siteUserPassword');
+    const siteUserUsername = siteUserUsernameInput ? siteUserUsernameInput.value.trim() : '';
+    const siteUserPassword = siteUserPasswordInput ? siteUserPasswordInput.value.trim() : '';
+
+    const httpAuthUsernameInput = document.getElementById('httpAuthUsername');
+    const httpAuthPasswordInput = document.getElementById('httpAuthPassword');
+    const httpAuthUsername = httpAuthUsernameInput ? httpAuthUsernameInput.value.trim() : '';
+    const httpAuthPassword = httpAuthPasswordInput ? httpAuthPasswordInput.value.trim() : '';
+
     const renderDelayInput = document.getElementById('renderDelay');
     const delay = parseInt(renderDelayInput ? renderDelayInput.value : 6000) || 6000;
 
@@ -283,8 +290,10 @@ document.addEventListener('DOMContentLoaded', () => {
         height: selectedHeight,
         misMatchThreshold,
         hideSelectors,
-        authUsername,
-        authPassword,
+        siteUserUsername,
+        siteUserPassword,
+        httpAuthUsername,
+        httpAuthPassword,
         delay
       };
 
@@ -305,8 +314,10 @@ document.addEventListener('DOMContentLoaded', () => {
         height: selectedHeight,
         misMatchThreshold,
         hideSelectors,
-        authUsername,
-        authPassword,
+        siteUserUsername,
+        siteUserPassword,
+        httpAuthUsername,
+        httpAuthPassword,
         delay
       };
 
@@ -333,8 +344,10 @@ document.addEventListener('DOMContentLoaded', () => {
         height: selectedHeight,
         misMatchThreshold,
         hideSelectors,
-        authUsername,
-        authPassword,
+        siteUserUsername,
+        siteUserPassword,
+        httpAuthUsername,
+        httpAuthPassword,
         delay
       };
     }
