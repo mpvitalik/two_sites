@@ -14,42 +14,42 @@ module.exports = async (page, scenario, viewport, isReference) => {
     } catch (err) {}
   }
 
-  // 2. Load pre-authenticated storageState (cookies + localStorage)
+  // 2. Load pre-authenticated storageState for both reference and test domains
   const rootDir = process.cwd();
-  const refStatePath = path.join(rootDir, 'backstop_data', 'engine_scripts', 'cookies_reference.json');
-  const testStatePath = path.join(rootDir, 'backstop_data', 'engine_scripts', 'cookies_test.json');
-  const fallbackPath = path.join(rootDir, 'backstop_data', 'engine_scripts', 'cookies.json');
+  const stateFiles = [
+    path.join(rootDir, 'backstop_data', 'engine_scripts', 'cookies_reference.json'),
+    path.join(rootDir, 'backstop_data', 'engine_scripts', 'cookies_test.json'),
+    path.join(rootDir, 'backstop_data', 'engine_scripts', 'cookies.json')
+  ];
 
-  const targetStatePath = isReference
-    ? (fs.existsSync(refStatePath) ? refStatePath : fallbackPath)
-    : (fs.existsSync(testStatePath) ? testStatePath : fallbackPath);
+  for (const targetStatePath of stateFiles) {
+    if (fs.existsSync(targetStatePath) && context) {
+      try {
+        const stateContent = fs.readFileSync(targetStatePath, 'utf8');
+        const storageState = JSON.parse(stateContent);
 
-  if (fs.existsSync(targetStatePath) && context) {
-    try {
-      const stateContent = fs.readFileSync(targetStatePath, 'utf8');
-      const storageState = JSON.parse(stateContent);
+        if (storageState.cookies && Array.isArray(storageState.cookies) && storageState.cookies.length > 0) {
+          await context.addCookies(storageState.cookies).catch(() => {});
+        }
 
-      if (storageState.cookies && Array.isArray(storageState.cookies) && storageState.cookies.length > 0) {
-        await context.addCookies(storageState.cookies).catch(() => {});
-      }
-
-      if (storageState.origins && Array.isArray(storageState.origins)) {
-        for (const originState of storageState.origins) {
-          if (originState.localStorage && Array.isArray(originState.localStorage) && originState.localStorage.length > 0) {
-            await page.addInitScript(({ targetOrigin, entries }) => {
-              try {
-                if (window.location.origin === targetOrigin || targetOrigin.includes(window.location.hostname)) {
-                  for (const entry of entries) {
-                    window.localStorage.setItem(entry.name, entry.value);
+        if (storageState.origins && Array.isArray(storageState.origins)) {
+          for (const originState of storageState.origins) {
+            if (originState.localStorage && Array.isArray(originState.localStorage) && originState.localStorage.length > 0) {
+              await page.addInitScript(({ targetOrigin, entries }) => {
+                try {
+                  if (window.location.origin === targetOrigin || targetOrigin.includes(window.location.hostname)) {
+                    for (const entry of entries) {
+                      window.localStorage.setItem(entry.name, entry.value);
+                    }
                   }
-                }
-              } catch (e) {}
-            }, { targetOrigin: originState.origin, entries: originState.localStorage }).catch(() => {});
+                } catch (e) {}
+              }, { targetOrigin: originState.origin, entries: originState.localStorage }).catch(() => {});
+            }
           }
         }
+      } catch (err) {
+        console.warn('StorageState load warning:', err.message);
       }
-    } catch (err) {
-      console.warn('StorageState load warning:', err.message);
     }
   }
 };

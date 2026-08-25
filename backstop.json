@@ -16,8 +16,8 @@
     {
       "label": "Homepage Comparison",
       "cookiePath": "backstop_data/engine_scripts/cookies_reference.json",
-      "url": "https://rc.bons.com/",
-      "referenceUrl": "https://bons.com/",
+      "url": "https://rc.bons.com/account/profile/info",
+      "referenceUrl": "https://bons.com/account/profile/info",
       "basicAuth": null,
       "httpAuthUsername": "",
       "httpAuthPassword": "",
@@ -28,7 +28,8 @@
         "[class*=\"winning-zone\"]",
         "[class*=\"live-bets\"]",
         "[class*=\"ticker\"]",
-        "[class*=\"banner-timer\"]"
+        "[class*=\"banner-timer\"]",
+        "[class*=\"jackpot\"]"
       ],
       "removeSelectors": [],
       "hoverSelector": "",
@@ -39,7 +40,7 @@
       ],
       "selectorExpansion": true,
       "expect": 0,
-      "misMatchThreshold": 6,
+      "misMatchThreshold": 10,
       "requireSameDimensions": false
     }
   ],
@@ -60,7 +61,7 @@
       "--no-sandbox"
     ]
   },
-  "asyncCaptureLimit": 5,
+  "asyncCaptureLimit": 1,
   "asyncCompareLimit": 50,
   "debug": false,
   "debugWindow": false

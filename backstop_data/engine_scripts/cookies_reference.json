@@ -1,0 +1,153 @@
+{
+  "cookies": [
+    {
+      "name": "amuid",
+      "value": "jd74bme4wkp2h7qxw3x3vur6rj",
+      "domain": "pix1.cloud",
+      "path": "/p",
+      "expires": 1822210291.809087,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "__ddg9_",
+      "value": "94.176.211.165",
+      "domain": ".bons.com",
+      "path": "/",
+      "expires": 1787651493.974578,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "__ddg1_",
+      "value": "Ptf1ATKB5upE3VfK3P1V",
+      "domain": ".bons.com",
+      "path": "/",
+      "expires": 1819186289.872167,
+      "httpOnly": true,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_xsrf",
+      "value": "2|0d9c746f|433bf9bfb07659bbaf53649ce3d4a0ca|1787650289",
+      "domain": "bons.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "lang",
+      "value": "en",
+      "domain": "bons.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "element_visibility_counter",
+      "value": "0",
+      "domain": "bons.com",
+      "path": "/",
+      "expires": 1788255094,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_ga",
+      "value": "GA1.1.2070045462.1787650292",
+      "domain": ".bons.com",
+      "path": "/",
+      "expires": 1822210291.980493,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_fbp",
+      "value": "fb.1.1787650292431.208796341856679015",
+      "domain": ".bons.com",
+      "path": "/",
+      "expires": 1795426292,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "__ddg10_",
+      "value": "1787650294",
+      "domain": ".bons.com",
+      "path": "/",
+      "expires": 1787651493.974557,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "cbsid",
+      "value": ".eJxtkd1yqyAUhd-lT6BYM-NFL_JTCU4gU9MocidwqoLYTP2LPn3RtOfmnIs9zLBZe3178fRniuY8favO1bYih1efGeSww_WOTWhs6SwlhrzvzDkNNVbFnYArwPNrddpvq8yL6ozGNQsDvZxIfRZIoRGrrMOHosPqWuCD3tj3G6z0qhHHqJZ14AqjV88TuA8M1D2qxgI1Uc1MMjGK1l5-jB1xxJvTFFQc-PPJkIFfgpYDeeMVatE-ciV0PzIQdgKGNwaerW7Xy_TeLl6Sxh31yCBppNgFbRD0XQ7HvzqeJjqnSbdw8yZp-d4yGHYTDXGotyslLP7DuCtFE_e_jBmQpZ0z__QmDtxhzcGQJkvdWkwr58y9ZMrA9V-NKQfhPfLPTNCLyVccOGtWHIazDG1WMLYsDy1W24lUznjeOxO5bMfz--eMl7o8fHIY2B3jDwHKQbqBZpR8SRiMFJA2T5PeztPckz2HQWn_zd75XwuvPEYuo87L0zca-LYH.HW7ydg.owavgChopImrBFs7GtD14A2QWYA",
+      "domain": "bons.com",
+      "path": "/",
+      "expires": 1790242293.974593,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "tutor_passed",
+      "value": "true",
+      "domain": "bons.com",
+      "path": "/",
+      "expires": 1822210294.580655,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "__ddg8_",
+      "value": "YW3EFWoslIvSDITX",
+      "domain": ".bons.com",
+      "path": "/",
+      "expires": 1787651493.97452,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_ga_CHFX4EYW1X",
+      "value": "GS2.1.s1787650291$o1$g1$t1787650295$j56$l0$h1894358096",
+      "domain": ".bons.com",
+      "path": "/",
+      "expires": 1822210295.604533,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    }
+  ],
+  "origins": [
+    {
+      "origin": "https://bons.com",
+      "localStorage": [
+        {
+          "name": "lastExternalReferrer",
+          "value": "empty"
+        },
+        {
+          "name": "lastExternalReferrerTime",
+          "value": "1787650292418"
+        },
+        {
+          "name": "Symbol(LastLocationsSection)",
+          "value": "/"
+        }
+      ]
+    }
+  ]
+}
