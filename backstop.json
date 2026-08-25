@@ -24,7 +24,12 @@
       "readyEvent": "",
       "readySelector": "",
       "delay": 6000,
-      "hideSelectors": [],
+      "hideSelectors": [
+        "[class*=\"winning-zone\"]",
+        "[class*=\"live-bets\"]",
+        "[class*=\"ticker\"]",
+        "[class*=\"banner-timer\"]"
+      ],
       "removeSelectors": [],
       "hoverSelector": "",
       "clickSelector": "",
