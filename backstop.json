@@ -15,15 +15,12 @@
   "scenarios": [
     {
       "label": "Homepage Comparison",
-      "cookiePath": "backstop_data/engine_scripts/cookies.json",
-      "url": "https://ivanaleksandrov2012%40gmail.com:qqq111qqq@rc.bons.com/account/profile/info",
-      "referenceUrl": "https://ivanaleksandrov2012%40gmail.com:qqq111qqq@bons.com/account/profile/info",
-      "basicAuth": {
-        "username": "ivanaleksandrov2012@gmail.com",
-        "password": "qqq111qqq"
-      },
-      "authUsername": "ivanaleksandrov2012@gmail.com",
-      "authPassword": "qqq111qqq",
+      "cookiePath": "backstop_data/engine_scripts/cookies_reference.json",
+      "url": "https://rc.bons.com/",
+      "referenceUrl": "https://bons.com/",
+      "basicAuth": null,
+      "httpAuthUsername": "",
+      "httpAuthPassword": "",
       "readyEvent": "",
       "readySelector": "",
       "delay": 6000,
