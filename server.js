@@ -176,6 +176,46 @@ function pairSitemapUrls(refUrls, testSitemapUrl, testUrls = []) {
   return pairs;
 }
 
+// Saves a screenshot + light DOM dump so a failed login can be diagnosed without
+// needing live access to the target site.
+async function saveLoginDebugArtifacts(page, origin, tag) {
+  try {
+    const debugDir = path.join(__dirname, 'backstop_data', 'debug');
+    if (!fs.existsSync(debugDir)) fs.mkdirSync(debugDir, { recursive: true });
+    const safeName = origin.replace(/[^a-z0-9]+/gi, '_') + '_' + tag;
+    const pngPath = path.join(debugDir, `${safeName}.png`);
+    const jsonPath = path.join(debugDir, `${safeName}.json`);
+
+    await page.screenshot({ path: pngPath, fullPage: false }).catch(() => {});
+
+    const info = await page.evaluate(() => {
+      const clickables = [...document.querySelectorAll('a, button')]
+        .map(n => ({
+          tag: n.tagName,
+          text: (n.innerText || '').trim().slice(0, 40),
+          href: n.getAttribute('href') || null,
+          cls: (n.className && typeof n.className === 'string') ? n.className.slice(0, 100) : ''
+        }))
+        .filter(n => n.text.length > 0)
+        .slice(0, 60);
+      const inputs = [...document.querySelectorAll('input')].map(i => ({
+        type: i.type, id: i.id, name: i.name, placeholder: i.placeholder
+      }));
+      return {
+        title: document.title,
+        bodyTextSnippet: (document.body.innerText || '').slice(0, 500),
+        clickables,
+        inputs
+      };
+    }).catch(() => ({}));
+
+    fs.writeFileSync(jsonPath, JSON.stringify({ url: page.url(), ...info }, null, 2), 'utf8');
+    console.log(`[ONE-TIME-LOGIN] Debug artifacts saved: ${pngPath}`);
+  } catch (e) {
+    console.warn('[ONE-TIME-LOGIN] Failed to save debug artifacts:', e.message);
+  }
+}
+
 // Dedicated One-Time Login Helper using Playwright
 async function performOneTimeSiteLogin(origin, username, password, httpAuthUsername, httpAuthPassword, storageStatePath) {
   const extraHeaders = {};
@@ -186,7 +226,8 @@ async function performOneTimeSiteLogin(origin, username, password, httpAuthUsern
   const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
   const context = await browser.newContext({
     extraHTTPHeaders: extraHeaders,
-    ignoreHTTPSErrors: true
+    ignoreHTTPSErrors: true,
+    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36'
   });
 
   if (httpAuthUsername) {
@@ -194,19 +235,73 @@ async function performOneTimeSiteLogin(origin, username, password, httpAuthUsern
   }
 
   const page = await context.newPage();
-  const loginUrl = `${origin.replace(/\/$/, '')}/login`;
-
-  console.log(`[ONE-TIME-LOGIN] Navigating to ${loginUrl} for user ${username}...`);
-  await page.goto(loginUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
-  await page.waitForTimeout(2000);
+  const cleanOrigin = origin.replace(/\/$/, '');
 
   const emailSelector = '#login, input[type="email"], input[id="login"], input[id="email"], input[name="login"]';
   const passwordSelector = '#password, input[type="password"], input[id="password"]';
+  // Header "Login" button only — must not match "Sign Up" / registration links.
+  const headerLoginSelector = 'header a[href*="login"]:not([href*="registration"]), header button:has-text("Login"), a[href$="/login"], button:has-text("Log in")';
+  // Text-based fallback in case the button isn't inside a <header> or is a styled <div>/<span>.
+  const textLoginLocator = 'text=/^\\s*(Login|Log in|Вхід|Войти)\\s*$/i';
+  // The "Already have an account? Log in" link that switches a registration modal back to login.
+  const switchToLoginSelector = 'a:has-text("Log in"), button:has-text("Log in"), a:has-text("Вхід"), a:has-text("Войти")';
 
-  const emailInput = await page.$(emailSelector);
-  if (!emailInput) {
+  console.log(`[ONE-TIME-LOGIN] Opening ${cleanOrigin} for user ${username}...`);
+  await page.goto(cleanOrigin, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  await page.waitForTimeout(1500);
+
+  let loginFormOpened = false;
+
+  // 1) Preferred path: click the header "Login" button. On SPA sites (e.g. bons.com)
+  //    a direct /login navigation redirects to the registration flow instead, so we
+  //    open the login form the same way a real visitor would — via the header button.
+  try {
+    const headerBtn = await page.$(headerLoginSelector);
+    if (headerBtn) {
+      await headerBtn.click();
+      await page.waitForTimeout(1500);
+      if (await page.$(emailSelector)) loginFormOpened = true;
+    }
+  } catch (e) {}
+
+  // 1b) Fallback: same intent, matched by visible text rather than tag/class,
+  //     in case "Login" isn't an <a>/<button> inside a <header>.
+  if (!loginFormOpened) {
+    try {
+      const textBtn = page.locator(textLoginLocator).first();
+      if (await textBtn.count()) {
+        await textBtn.click({ timeout: 5000 });
+        await page.waitForTimeout(1500);
+        if (await page.$(emailSelector)) loginFormOpened = true;
+      }
+    } catch (e) {}
+  }
+
+  // 2) If we still ended up on the registration modal (no header button, or the click
+  //    itself redirected to /registration), use its "Already have an account? Log in"
+  //    link to switch to the login form without leaving the page.
+  if (!loginFormOpened) {
+    try {
+      const switchLink = await page.$(switchToLoginSelector);
+      if (switchLink) {
+        await switchLink.click();
+        await page.waitForTimeout(1500);
+        if (await page.$(emailSelector)) loginFormOpened = true;
+      }
+    } catch (e) {}
+  }
+
+  // 3) Last resort: some domains (e.g. rc.bons.com) serve a real standalone /login page.
+  if (!loginFormOpened) {
+    await page.goto(`${cleanOrigin}/login`, { waitUntil: 'domcontentloaded', timeout: 25000 }).catch(() => {});
+    await page.waitForTimeout(1500);
+    if (await page.$(emailSelector)) loginFormOpened = true;
+  }
+
+  if (!loginFormOpened) {
+    await saveLoginDebugArtifacts(page, cleanOrigin, 'form-not-found');
     await browser.close();
-    throw new Error(`Не вдалося знайти поле введення логіна на ${loginUrl}`);
+    throw new Error(`Не вдалося відкрити форму входу на ${cleanOrigin} (сайт постійно показує форму реєстрації замість логіну). Діагностику збережено в backstop_data/debug/.`);
   }
 
   await page.focus(emailSelector);
@@ -221,13 +316,11 @@ async function performOneTimeSiteLogin(origin, username, password, httpAuthUsern
 
   await page.waitForTimeout(500);
 
-  const submitSelector = 'button[type="submit"], .ui-button_kind-primary1, button:has-text("Login"), button:has-text("Вхід"), button:has-text("Войти")';
+  // Submit strictly the LOGIN button. The previous selector (".ui-button_kind-primary1")
+  // also matched the registration modal's "Finish" button, which is how the login
+  // silently turned into a registration attempt on bons.com.
+  const submitSelector = 'button[type="submit"]:has-text("Login"), button[type="submit"]:has-text("Log in"), button:has-text("Log in"), button:has-text("Вхід"), button:has-text("Войти")';
   const submitBtn = await page.$(submitSelector);
-
-  const loginResponsePromise = page.waitForResponse(
-    res => res.url().includes('/user/login') || res.url().includes('/auth'),
-    { timeout: 12000 }
-  ).catch(() => null);
 
   if (submitBtn) {
     await submitBtn.click();
@@ -235,13 +328,23 @@ async function performOneTimeSiteLogin(origin, username, password, httpAuthUsern
     await page.keyboard.press('Enter');
   }
 
-  const loginRes = await loginResponsePromise;
   await page.waitForTimeout(4500);
 
+  // Verify success by actual DOM/URL state instead of trusting a loosely-matched
+  // network response (the old check treated ANY 200 response containing "/auth" as
+  // proof of login, which false-positived while still stuck on the registration form).
   const currentUrl = page.url();
-  if (currentUrl.includes('/registration') && (!loginRes || loginRes.status() !== 200)) {
+  const stillOnRegistration = currentUrl.includes('/registration');
+  const loginBtnStillVisible = await page.$(headerLoginSelector).catch(() => null);
+
+  if (stillOnRegistration || loginBtnStillVisible) {
+    await saveLoginDebugArtifacts(page, cleanOrigin, 'login-verify-failed');
+    const captchaBlocked = await page.evaluate(() => /captcha/i.test(document.body.innerText || '')).catch(() => false);
     await browser.close();
-    throw new Error(`Авторизація на ${origin} не вдалася. Перевірте логін та пароль.`);
+    if (captchaBlocked) {
+      throw new Error(`Сайт ${cleanOrigin} заблокував автоматичний вхід через reCAPTCHA ("Wrong captcha value"). Це не проблема логіна/пароля — Google reCAPTCHA неможливо пройти скриптом. Виконайте одноразовий РУЧНИЙ вхід: у терміналі запустіть "npm run login:manual", залогіньтесь у вікні браузера, що відкриється (включно з капчею), і натисніть Enter. Після цього залиште поля Логін/Пароль порожніми при запуску порівняння — збережена сесія підхопиться автоматично.`);
+    }
+    throw new Error(`Авторизація на ${cleanOrigin} не вдалася: після входу сайт все ще показує форму реєстрації або кнопку "Login". Перевірте логін та пароль. Діагностику збережено в backstop_data/debug/.`);
   }
 
   // Save complete Playwright storageState (cookies + localStorage)

@@ -14,10 +14,70 @@
   },
   "scenarios": [
     {
-      "label": "Homepage Comparison",
+      "label": "/account/profile/history/transactions",
       "cookiePath": "backstop_data/engine_scripts/cookies_reference.json",
-      "url": "https://rc.bons.com/account/profile/info",
-      "referenceUrl": "https://bons.com/account/profile/info",
+      "url": "https://rc.bons.com/account/profile/history/transactions",
+      "referenceUrl": "https://bons.com/account/profile/history/transactions",
+      "basicAuth": null,
+      "httpAuthUsername": "",
+      "httpAuthPassword": "",
+      "readyEvent": "",
+      "readySelector": "",
+      "delay": 6000,
+      "hideSelectors": [
+        "[class*=\"winning-zone\"]",
+        "[class*=\"live-bets\"]",
+        "[class*=\"ticker\"]",
+        "[class*=\"banner-timer\"]",
+        "[class*=\"jackpot\"]"
+      ],
+      "removeSelectors": [],
+      "hoverSelector": "",
+      "clickSelector": "",
+      "postInteractionWait": 0,
+      "selectors": [
+        "document"
+      ],
+      "selectorExpansion": true,
+      "expect": 0,
+      "misMatchThreshold": 10,
+      "requireSameDimensions": false
+    },
+    {
+      "label": "/account/profile/history/bonuses",
+      "cookiePath": "backstop_data/engine_scripts/cookies_reference.json",
+      "url": "https://rc.bons.com/account/profile/history/bonuses",
+      "referenceUrl": "https://bons.com/account/profile/history/bonuses",
+      "basicAuth": null,
+      "httpAuthUsername": "",
+      "httpAuthPassword": "",
+      "readyEvent": "",
+      "readySelector": "",
+      "delay": 6000,
+      "hideSelectors": [
+        "[class*=\"winning-zone\"]",
+        "[class*=\"live-bets\"]",
+        "[class*=\"ticker\"]",
+        "[class*=\"banner-timer\"]",
+        "[class*=\"jackpot\"]"
+      ],
+      "removeSelectors": [],
+      "hoverSelector": "",
+      "clickSelector": "",
+      "postInteractionWait": 0,
+      "selectors": [
+        "document"
+      ],
+      "selectorExpansion": true,
+      "expect": 0,
+      "misMatchThreshold": 10,
+      "requireSameDimensions": false
+    },
+    {
+      "label": "/account/profile/history/games",
+      "cookiePath": "backstop_data/engine_scripts/cookies_reference.json",
+      "url": "https://rc.bons.com/account/profile/history/games",
+      "referenceUrl": "https://bons.com/account/profile/history/games",
       "basicAuth": null,
       "httpAuthUsername": "",
       "httpAuthPassword": "",
@@ -61,7 +121,7 @@
       "--no-sandbox"
     ]
   },
-  "asyncCaptureLimit": 1,
+  "asyncCaptureLimit": 5,
   "asyncCompareLimit": 50,
   "debug": false,
   "debugWindow": false

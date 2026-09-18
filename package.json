@@ -9,7 +9,8 @@
     "build": "npx playwright install chromium",
     "reference": "backstop reference",
     "test": "backstop test",
-    "open-report": "backstop openReport"
+    "open-report": "backstop openReport",
+    "login:manual": "node manual-login.js"
   },
   "keywords": [],
   "author": "",
