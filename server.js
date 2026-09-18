@@ -12,6 +12,27 @@ const PORT = process.env.PORT || 3030;
 
 let activeChildProcess = null;
 
+// Helper to ensure all required Backstop directories exist on disk
+function ensureBackstopDirectories() {
+  const dirs = [
+    path.join(__dirname, 'backstop_data'),
+    path.join(__dirname, 'backstop_data', 'bitmaps_reference'),
+    path.join(__dirname, 'backstop_data', 'bitmaps_test'),
+    path.join(__dirname, 'backstop_data', 'engine_scripts'),
+    path.join(__dirname, 'backstop_data', 'html_report'),
+    path.join(__dirname, 'backstop_data', 'ci_report'),
+    path.join(__dirname, 'backstop_data', 'debug')
+  ];
+  dirs.forEach(dir => {
+    if (!fs.existsSync(dir)) {
+      try {
+        fs.mkdirSync(dir, { recursive: true });
+      } catch (e) {}
+    }
+  });
+}
+ensureBackstopDirectories();
+
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/backstop_data', express.static(path.join(__dirname, 'backstop_data'), {
@@ -707,8 +728,23 @@ async function runBackstopSuite(scenarios, width, height, siteUserUsername, site
   }
 
   // Read report JSON and sync html_report/config.js
-  const testDirs = fs.readdirSync(path.join(__dirname, 'backstop_data', 'bitmaps_test')).filter(f => f !== '.DS_Store' && fs.statSync(path.join(__dirname, 'backstop_data', 'bitmaps_test', f)).isDirectory());
-  testDirs.sort().reverse();
+  ensureBackstopDirectories();
+  const bitmapsTestPath = path.join(__dirname, 'backstop_data', 'bitmaps_test');
+  let testDirs = [];
+  try {
+    if (fs.existsSync(bitmapsTestPath)) {
+      testDirs = fs.readdirSync(bitmapsTestPath).filter(f => {
+        try {
+          return f !== '.DS_Store' && fs.statSync(path.join(bitmapsTestPath, f)).isDirectory();
+        } catch (e) {
+          return false;
+        }
+      });
+      testDirs.sort().reverse();
+    }
+  } catch (e) {
+    console.warn('Could not read bitmaps_test dir:', e.message);
+  }
 
   let reportData = null;
   if (testDirs.length > 0) {
