@@ -30,6 +30,21 @@ function ensureBackstopDirectories() {
       } catch (e) {}
     }
   });
+
+  // Ensure html_report template files (index.html, index_bundle.js, etc.) exist
+  const htmlReportDir = path.join(__dirname, 'backstop_data', 'html_report');
+  const indexHtmlPath = path.join(htmlReportDir, 'index.html');
+  if (!fs.existsSync(indexHtmlPath)) {
+    try {
+      const templateDir = path.join(__dirname, 'node_modules', 'backstopjs', 'compare', 'output');
+      if (fs.existsSync(templateDir)) {
+        fs.cpSync(templateDir, htmlReportDir, { recursive: true });
+        console.log('Successfully copied BackstopJS HTML report templates to backstop_data/html_report.');
+      }
+    } catch (e) {
+      console.warn('Could not copy BackstopJS HTML report templates:', e.message);
+    }
+  }
 }
 ensureBackstopDirectories();
 
