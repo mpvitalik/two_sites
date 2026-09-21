@@ -405,6 +405,145 @@ app.post('/api/stop', (req, res) => {
   res.json({ success: true, message: 'Немає активних процесів для зупинки.' });
 });
 
+let activeVncState = {
+  active: false,
+  xvfbProc: null,
+  x11vncProc: null,
+  browser: null,
+  context: null,
+  startedAt: null
+};
+
+async function stopVncSession() {
+  if (activeVncState.browser) {
+    try { await activeVncState.browser.close(); } catch (e) {}
+  }
+  if (activeVncState.xvfbProc) {
+    try { activeVncState.xvfbProc.kill('SIGKILL'); } catch (e) {}
+  }
+  if (activeVncState.x11vncProc) {
+    try { activeVncState.x11vncProc.kill('SIGKILL'); } catch (e) {}
+  }
+  try {
+    exec('pkill -9 -f "Xvfb :99" || true; pkill -9 -f "x11vnc.*5900" || true');
+  } catch (e) {}
+  activeVncState = { active: false, xvfbProc: null, x11vncProc: null, browser: null, context: null, startedAt: null };
+}
+
+// API: Get VNC Status
+app.get('/api/vnc/status', (req, res) => {
+  const host = req.headers.host ? req.headers.host.split(':')[0] : '94.176.211.242';
+  res.json({
+    success: true,
+    active: activeVncState.active,
+    startedAt: activeVncState.startedAt,
+    vncUrl: activeVncState.active ? `vnc://${host}:5900` : null
+  });
+});
+
+// API: Start Remote VNC Session
+app.post('/api/vnc/start', async (req, res) => {
+  try {
+    if (activeVncState.active) {
+      await stopVncSession();
+    }
+
+    const { spawn } = require('child_process');
+
+    exec('pkill -9 -f "Xvfb :99" || true; pkill -9 -f "x11vnc.*5900" || true');
+    await new Promise(r => setTimeout(r, 600));
+
+    const xvfbProc = spawn('Xvfb', [':99', '-screen', '0', '1440x900x24'], { stdio: 'ignore' });
+    await new Promise(r => setTimeout(r, 1000));
+
+    const x11vncProc = spawn('x11vnc', ['-display', ':99', '-rfbport', '5900', '-nopw', '-forever', '-shared'], { stdio: 'ignore' });
+    await new Promise(r => setTimeout(r, 1000));
+
+    const browser = await chromium.launch({
+      headless: false,
+      env: { ...process.env, DISPLAY: ':99' },
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--window-size=1440,900'
+      ]
+    });
+
+    const context = await browser.newContext({
+      viewport: { width: 1440, height: 900 },
+      userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36'
+    });
+
+    const page1 = await context.newPage();
+    await page1.goto('https://bons.com', { waitUntil: 'domcontentloaded' }).catch(() => {});
+
+    const page2 = await context.newPage();
+    await page2.goto('https://rc.bons.com', { waitUntil: 'domcontentloaded' }).catch(() => {});
+
+    activeVncState = {
+      active: true,
+      xvfbProc,
+      x11vncProc,
+      browser,
+      context,
+      startedAt: Date.now()
+    };
+
+    const host = req.headers.host ? req.headers.host.split(':')[0] : '94.176.211.242';
+    const vncUrl = `vnc://${host}:5900`;
+
+    res.json({
+      success: true,
+      active: true,
+      message: 'VNC сервер успішно запущено на порту 5900!',
+      vncUrl
+    });
+  } catch (err) {
+    console.error('Failed to start VNC session:', err);
+    await stopVncSession();
+    res.status(500).json({ success: false, error: `Не вдалося запустити VNC на сервері: ${err.message}` });
+  }
+});
+
+// API: Save VNC Session
+app.post('/api/vnc/save', async (req, res) => {
+  try {
+    if (!activeVncState.active || !activeVncState.context) {
+      return res.status(400).json({ success: false, error: 'VNC сесія не активна.' });
+    }
+
+    const refPath = path.join(__dirname, 'backstop_data', 'engine_scripts', 'cookies_reference.json');
+    const testPath = path.join(__dirname, 'backstop_data', 'engine_scripts', 'cookies_test.json');
+
+    ensureBackstopDirectories();
+
+    await activeVncState.context.storageState({ path: refPath });
+    await activeVncState.context.storageState({ path: testPath });
+
+    console.log(`[VNC-WEB] StorageState saved to ${refPath} & ${testPath}`);
+
+    await stopVncSession();
+
+    res.json({
+      success: true,
+      message: 'Авторизаційні кукі успішно збережено у cookies_reference.json та cookies_test.json!'
+    });
+  } catch (err) {
+    console.error('Failed to save VNC session:', err);
+    res.status(500).json({ success: false, error: `Помилка збереження сесії VNC: ${err.message}` });
+  }
+});
+
+// API: Stop VNC Session
+app.post('/api/vnc/stop', async (req, res) => {
+  try {
+    await stopVncSession();
+    res.json({ success: true, message: 'VNC сесію зупинено.' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // API: Count Sitemap Pages
 app.post('/api/count-sitemap', async (req, res) => {
   try {

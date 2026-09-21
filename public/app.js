@@ -500,4 +500,112 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
+
+  // VNC Remote Login Helper Handlers
+  const startVncBtn = document.getElementById('startVncBtn');
+  const saveVncBtn = document.getElementById('saveVncBtn');
+  const stopVncBtn = document.getElementById('stopVncBtn');
+  const vncActivePanel = document.getElementById('vncActivePanel');
+  const vncUrlText = document.getElementById('vncUrlText');
+
+  async function checkVncStatus() {
+    try {
+      const res = await fetch('/api/vnc/status');
+      const data = await res.json();
+      if (data.active && vncActivePanel) {
+        vncActivePanel.classList.remove('hidden');
+        if (vncUrlText && data.vncUrl) vncUrlText.textContent = data.vncUrl;
+        if (startVncBtn) {
+          startVncBtn.disabled = true;
+          startVncBtn.textContent = 'VNC запущен';
+        }
+      } else if (vncActivePanel) {
+        vncActivePanel.classList.add('hidden');
+        if (startVncBtn) {
+          startVncBtn.disabled = false;
+          startVncBtn.textContent = '🚀 Запустити VNC на сервері';
+        }
+      }
+    } catch (e) {}
+  }
+
+  checkVncStatus();
+
+  if (startVncBtn) {
+    startVncBtn.addEventListener('click', async () => {
+      try {
+        startVncBtn.disabled = true;
+        startVncBtn.textContent = 'Запуск VNC...';
+        addLog('Запуск Xvfb, x11vnc та Playwright Chromium на сервері...');
+
+        const res = await fetch('/api/vnc/start', { method: 'POST' });
+        const data = await res.json();
+
+        if (!data.success) {
+          throw new Error(data.error || 'Помилка запуску VNC');
+        }
+
+        addLog(`✅ VNC сервер запущено! Адреса: ${data.vncUrl}`, 'success');
+        if (vncUrlText) vncUrlText.textContent = data.vncUrl;
+        if (vncActivePanel) vncActivePanel.classList.remove('hidden');
+        startVncBtn.textContent = 'VNC запущен';
+      } catch (err) {
+        addLog(`Помилка запуску VNC: ${err.message}`, 'error');
+        alert(`Помилка запуску VNC: ${err.message}`);
+        startVncBtn.disabled = false;
+        startVncBtn.textContent = '🚀 Запустити VNC на сервері';
+      }
+    });
+  }
+
+  if (saveVncBtn) {
+    saveVncBtn.addEventListener('click', async () => {
+      try {
+        saveVncBtn.disabled = true;
+        saveVncBtn.textContent = 'Збереження кукі...';
+        addLog('Збереження авторизаційних кукі (storageState)...');
+
+        const res = await fetch('/api/vnc/save', { method: 'POST' });
+        const data = await res.json();
+
+        if (!data.success) {
+          throw new Error(data.error || 'Помилка збереження');
+        }
+
+        addLog(`✅ ${data.message}`, 'success');
+        alert(data.message);
+        if (vncActivePanel) vncActivePanel.classList.add('hidden');
+        if (startVncBtn) {
+          startVncBtn.disabled = false;
+          startVncBtn.textContent = '🚀 Запустити VNC на сервері';
+        }
+      } catch (err) {
+        addLog(`Помилка збереження VNC сесії: ${err.message}`, 'error');
+        alert(`Помилка: ${err.message}`);
+      } finally {
+        saveVncBtn.disabled = false;
+        saveVncBtn.textContent = '✅ Зберегти сесію та закрити VNC';
+      }
+    });
+  }
+
+  if (stopVncBtn) {
+    stopVncBtn.addEventListener('click', async () => {
+      try {
+        stopVncBtn.disabled = true;
+        const res = await fetch('/api/vnc/stop', { method: 'POST' });
+        const data = await res.json();
+        addLog(data.message || 'VNC сесію зупинено.', 'info');
+        if (vncActivePanel) vncActivePanel.classList.add('hidden');
+        if (startVncBtn) {
+          startVncBtn.disabled = false;
+          startVncBtn.textContent = '🚀 Запустити VNC на сервері';
+        }
+      } catch (err) {
+        addLog(`Помилка зупинки VNC: ${err.message}`, 'error');
+      } finally {
+        stopVncBtn.disabled = false;
+      }
+    });
+  }
 });
