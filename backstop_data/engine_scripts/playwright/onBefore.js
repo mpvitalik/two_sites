@@ -35,15 +35,13 @@ module.exports = async (page, scenario, viewport, isReference) => {
         if (storageState.origins && Array.isArray(storageState.origins)) {
           for (const originState of storageState.origins) {
             if (originState.localStorage && Array.isArray(originState.localStorage) && originState.localStorage.length > 0) {
-              await page.addInitScript(({ targetOrigin, entries }) => {
+              await page.addInitScript((entries) => {
                 try {
-                  if (window.location.origin === targetOrigin || targetOrigin.includes(window.location.hostname)) {
-                    for (const entry of entries) {
-                      window.localStorage.setItem(entry.name, entry.value);
-                    }
+                  for (const entry of entries) {
+                    window.localStorage.setItem(entry.name, entry.value);
                   }
                 } catch (e) {}
-              }, { targetOrigin: originState.origin, entries: originState.localStorage }).catch(() => {});
+              }, originState.localStorage).catch(() => {});
             }
           }
         }

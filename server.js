@@ -460,6 +460,8 @@ app.get('/api/vnc/status', (req, res) => {
 // API: Start Remote VNC Session
 app.post('/api/vnc/start', async (req, res) => {
   try {
+    const { siteUserUsername, siteUserPassword } = req.body || {};
+
     if (activeVncState.active) {
       await stopVncSession();
     }
@@ -490,11 +492,44 @@ app.post('/api/vnc/start', async (req, res) => {
       userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36'
     });
 
+    const helperOpenLogin = async (page, url) => {
+      try {
+        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+        await page.waitForTimeout(1500);
+
+        const emailSel = '#login, input[type="email"], input[id="login"], input[id="email"], input[name="login"]';
+        const passSel = '#password, input[type="password"], input[id="password"]';
+
+        // Try clicking header login button if form not yet open
+        if (!await page.$(emailSel)) {
+          const headerBtn = await page.$('header a[href*="login"]:not([href*="registration"]), header button:has-text("Login"), a[href$="/login"]');
+          if (headerBtn) {
+            await headerBtn.click().catch(() => {});
+            await page.waitForTimeout(1500);
+          }
+        }
+
+        // Fill credentials if provided
+        if (siteUserUsername && siteUserPassword) {
+          if (await page.$(emailSel)) {
+            await page.focus(emailSel).catch(() => {});
+            await page.fill(emailSel, siteUserUsername).catch(() => {});
+            await page.dispatchEvent(emailSel, 'input').catch(() => {});
+          }
+          if (await page.$(passSel)) {
+            await page.focus(passSel).catch(() => {});
+            await page.fill(passSel, siteUserPassword).catch(() => {});
+            await page.dispatchEvent(passSel, 'input').catch(() => {});
+          }
+        }
+      } catch (e) {}
+    };
+
     const page1 = await context.newPage();
-    await page1.goto('https://bons.com', { waitUntil: 'domcontentloaded' }).catch(() => {});
+    await helperOpenLogin(page1, 'https://bons.com');
 
     const page2 = await context.newPage();
-    await page2.goto('https://rc.bons.com', { waitUntil: 'domcontentloaded' }).catch(() => {});
+    await helperOpenLogin(page2, 'https://rc.bons.com');
 
     activeVncState = {
       active: true,
@@ -528,6 +563,29 @@ app.post('/api/vnc/save', async (req, res) => {
       return res.status(400).json({ success: false, error: 'VNC сесія не активна.' });
     }
 
+    // Verify active authentication before saving
+    const pages = activeVncState.context.pages();
+    let authCheckResults = [];
+    for (const p of pages) {
+      try {
+        const info = await p.evaluate(() => {
+          const text = document.body.innerText || '';
+          const hasDepositOrProfile = /\b(Deposit|Cashier|Депозит|Пополнить|Balance|Profile|Account|Выход|Logout)\b/i.test(text);
+          const hasLoginBtn = !!document.querySelector('header a[href*="login"], header button:has-text("Login")');
+          return { url: window.location.href, hasDepositOrProfile, hasLoginBtn };
+        }).catch(() => ({ hasDepositOrProfile: false, hasLoginBtn: true }));
+        authCheckResults.push(info);
+      } catch (e) {}
+    }
+
+    const isAnyPageAuthenticated = authCheckResults.some(r => r.hasDepositOrProfile || !r.hasLoginBtn);
+    if (!isAnyPageAuthenticated) {
+      return res.status(400).json({
+        success: false,
+        error: 'Авторизацію не виявлено! Будь ласка, у вікні VNC введіть свій Email та Пароль, розв\'яжіть каптчу і натисніть "Вхід" (Login). Тільки після появи профілю/балансу на сторінці натискайте "Зберегти сесію".'
+      });
+    }
+
     const refPath = path.join(__dirname, 'backstop_data', 'engine_scripts', 'cookies_reference.json');
     const testPath = path.join(__dirname, 'backstop_data', 'engine_scripts', 'cookies_test.json');
 
@@ -542,7 +600,7 @@ app.post('/api/vnc/save', async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Авторизаційні кукі успішно збережено у cookies_reference.json та cookies_test.json!'
+      message: 'Авторизаційну сесію підтверджено та успішно збережено у cookies_reference.json та cookies_test.json!'
     });
   } catch (err) {
     console.error('Failed to save VNC session:', err);

@@ -547,7 +547,16 @@ document.addEventListener('DOMContentLoaded', () => {
         startVncBtn.textContent = 'Запуск VNC...';
         addLog('Запуск Xvfb, x11vnc та Playwright Chromium на сервері...');
 
-        const res = await fetch('/api/vnc/start', { method: 'POST' });
+        const siteUserUsernameInput = document.getElementById('siteUserUsername');
+        const siteUserPasswordInput = document.getElementById('siteUserPassword');
+        const siteUserUsername = siteUserUsernameInput ? siteUserUsernameInput.value.trim() : '';
+        const siteUserPassword = siteUserPasswordInput ? siteUserPasswordInput.value.trim() : '';
+
+        const res = await fetch('/api/vnc/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ siteUserUsername, siteUserPassword })
+        });
         const data = await res.json();
 
         if (!data.success) {
