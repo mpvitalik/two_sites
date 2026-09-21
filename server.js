@@ -58,6 +58,11 @@ app.use('/backstop_data', express.static(path.join(__dirname, 'backstop_data'), 
   }
 }));
 
+// Serve noVNC HTML5 client static files
+if (fs.existsSync('/usr/share/novnc')) {
+  app.use('/novnc', express.static('/usr/share/novnc'));
+}
+
 // Helper to fetch text content using Playwright HTTP client with fallback to native node http
 async function fetchUrlContent(url, username, password) {
   const extraHeaders = {
@@ -942,6 +947,57 @@ app.use((err, req, res, next) => {
   res.status(500).json({ success: false, error: err.message || 'Internal Server Error' });
 });
 
-app.listen(PORT, () => {
+const WebSocket = require('ws');
+const net = require('net');
+
+const wss = new WebSocket.Server({ noServer: true });
+
+wss.on('connection', (ws) => {
+  console.log('[VNC-WS] Client connected via WebSocket bridge');
+  const tcpSocket = net.connect(5900, '127.0.0.1', () => {
+    console.log('[VNC-WS] Connected to local X11VNC (127.0.0.1:5900)');
+  });
+
+  ws.on('message', (message) => {
+    tcpSocket.write(message);
+  });
+
+  tcpSocket.on('data', (data) => {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(data, { binary: true });
+    }
+  });
+
+  ws.on('close', () => {
+    tcpSocket.end();
+  });
+
+  tcpSocket.on('close', () => {
+    ws.close();
+  });
+
+  ws.on('error', (err) => {
+    console.warn('[VNC-WS] WebSocket error:', err.message);
+    tcpSocket.destroy();
+  });
+
+  tcpSocket.on('error', (err) => {
+    console.warn('[VNC-WS] TCP socket error:', err.message);
+    ws.close();
+  });
+});
+
+const server = app.listen(PORT, () => {
   console.log(`🚀 Backstop Visual UI Server running on http://localhost:${PORT}`);
+});
+
+server.on('upgrade', (request, socket, head) => {
+  const parsedUrl = new URL(request.url, `http://${request.headers.host || 'localhost'}`);
+  if (parsedUrl.pathname === '/websockify' || parsedUrl.pathname === '/vncws') {
+    wss.handleUpgrade(request, socket, head, (ws) => {
+      wss.emit('connection', ws, request);
+    });
+  } else {
+    socket.destroy();
+  }
 });

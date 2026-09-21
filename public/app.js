@@ -506,7 +506,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const saveVncBtn = document.getElementById('saveVncBtn');
   const stopVncBtn = document.getElementById('stopVncBtn');
   const vncActivePanel = document.getElementById('vncActivePanel');
-  const vncUrlText = document.getElementById('vncUrlText');
+  const vncIframe = document.getElementById('vncIframe');
+
+  function getNovncUrl() {
+    const host = window.location.hostname || '94.176.211.242';
+    const port = window.location.port || (window.location.protocol === 'https:' ? '443' : '80');
+    return `/novnc/vnc.html?host=${encodeURIComponent(host)}&port=${encodeURIComponent(port)}&path=websockify&autoconnect=true&resize=remote`;
+  }
 
   async function checkVncStatus() {
     try {
@@ -514,13 +520,16 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = await res.json();
       if (data.active && vncActivePanel) {
         vncActivePanel.classList.remove('hidden');
-        if (vncUrlText && data.vncUrl) vncUrlText.textContent = data.vncUrl;
+        if (vncIframe && (!vncIframe.src || vncIframe.src === 'about:blank')) {
+          vncIframe.src = getNovncUrl();
+        }
         if (startVncBtn) {
           startVncBtn.disabled = true;
           startVncBtn.textContent = 'VNC запущен';
         }
       } else if (vncActivePanel) {
         vncActivePanel.classList.add('hidden');
+        if (vncIframe) vncIframe.src = 'about:blank';
         if (startVncBtn) {
           startVncBtn.disabled = false;
           startVncBtn.textContent = '🚀 Запустити VNC на сервері';
@@ -545,9 +554,9 @@ document.addEventListener('DOMContentLoaded', () => {
           throw new Error(data.error || 'Помилка запуску VNC');
         }
 
-        addLog(`✅ VNC сервер запущено! Адреса: ${data.vncUrl}`, 'success');
-        if (vncUrlText) vncUrlText.textContent = data.vncUrl;
+        addLog(`✅ VNC сервер та Web VNC запущено!`, 'success');
         if (vncActivePanel) vncActivePanel.classList.remove('hidden');
+        if (vncIframe) vncIframe.src = getNovncUrl();
         startVncBtn.textContent = 'VNC запущен';
       } catch (err) {
         addLog(`Помилка запуску VNC: ${err.message}`, 'error');
@@ -575,6 +584,7 @@ document.addEventListener('DOMContentLoaded', () => {
         addLog(`✅ ${data.message}`, 'success');
         alert(data.message);
         if (vncActivePanel) vncActivePanel.classList.add('hidden');
+        if (vncIframe) vncIframe.src = 'about:blank';
         if (startVncBtn) {
           startVncBtn.disabled = false;
           startVncBtn.textContent = '🚀 Запустити VNC на сервері';
@@ -597,6 +607,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const data = await res.json();
         addLog(data.message || 'VNC сесію зупинено.', 'info');
         if (vncActivePanel) vncActivePanel.classList.add('hidden');
+        if (vncIframe) vncIframe.src = 'about:blank';
         if (startVncBtn) {
           startVncBtn.disabled = false;
           startVncBtn.textContent = '🚀 Запустити VNC на сервері';
