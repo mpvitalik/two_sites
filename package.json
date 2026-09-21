@@ -10,7 +10,8 @@
     "reference": "backstop reference",
     "test": "backstop test",
     "open-report": "backstop openReport",
-    "login:manual": "node manual-login.js"
+    "login:manual": "node manual-login.js",
+    "login:vnc": "node vnc-login.js"
   },
   "keywords": [],
   "author": "",
