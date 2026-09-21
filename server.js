@@ -45,6 +45,17 @@ function ensureBackstopDirectories() {
       console.warn('Could not copy BackstopJS HTML report templates:', e.message);
     }
   }
+
+  // Ensure noVNC static assets are available in public/novnc
+  const novncPublicDir = path.join(__dirname, 'public', 'novnc');
+  if (!fs.existsSync(novncPublicDir) && fs.existsSync('/usr/share/novnc')) {
+    try {
+      fs.cpSync('/usr/share/novnc', novncPublicDir, { recursive: true });
+      console.log('Successfully copied noVNC assets to public/novnc.');
+    } catch (e) {
+      console.warn('Could not copy noVNC assets:', e.message);
+    }
+  }
 }
 ensureBackstopDirectories();
 
