@@ -362,7 +362,8 @@ document.addEventListener('DOMContentLoaded', () => {
     logConsole.innerHTML = '';
 
     addLog('Запуск процесу візуального порівняння...', 'info');
-    setProgress(15, 'Генерація конфігурації');
+    setProgress(5, 'Генерація конфігурації');
+    startProgressPolling();
 
     try {
       if (currentMode === 'single') {
@@ -382,8 +383,6 @@ document.addEventListener('DOMContentLoaded', () => {
       addLog(`Роздільна здатність: ${selectedWidth}x${selectedHeight}`, 'info');
       addLog(`Допустиме розходження (Поріг): ${misMatchThreshold}%`, 'info');
       if (hideSelectors) addLog(`Приховані селектори: ${hideSelectors}`, 'info');
-
-      setProgress(40, 'Зйомка еталонних та тестових скріншотів');
 
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -445,11 +444,80 @@ document.addEventListener('DOMContentLoaded', () => {
       addLog(`Помилка: ${err.message}`, 'error');
       alert(`Помилка: ${err.message}`);
     } finally {
+      stopProgressPolling();
       runBtn.disabled = false;
       btnText.textContent = 'Запустити порівняння';
       btnLoader.classList.add('hidden');
     }
   });
+
+  // Live Progress Polling Functions
+  let progressInterval = null;
+
+  function startProgressPolling() {
+    stopProgressPolling();
+    progressInterval = setInterval(async () => {
+      try {
+        const res = await fetch('/api/progress');
+        const data = await res.json();
+        if (data.success) {
+          updateProgressUI(data);
+        }
+      } catch (e) {}
+    }, 800);
+  }
+
+  function stopProgressPolling() {
+    if (progressInterval) {
+      clearInterval(progressInterval);
+      progressInterval = null;
+    }
+  }
+
+  function updateProgressUI(data) {
+    const statCompletedPages = document.getElementById('statCompletedPages');
+    const statRemainingPages = document.getElementById('statRemainingPages');
+    const statCurrentStage = document.getElementById('statCurrentStage');
+    const progressBar = document.getElementById('progressBar');
+    const progressStepText = document.getElementById('progressStepText');
+
+    const total = data.totalScenarios || 0;
+    const completed = data.completedPages || 0;
+    const remaining = data.remainingPages || 0;
+
+    if (statCompletedPages) {
+      statCompletedPages.textContent = `${completed} / ${total}`;
+    }
+    if (statRemainingPages) {
+      statRemainingPages.textContent = `${remaining}`;
+    }
+
+    if (statCurrentStage) {
+      if (data.stage === 'reference') {
+        statCurrentStage.textContent = `Еталон (${data.completedReference}/${total})`;
+      } else if (data.stage === 'test') {
+        statCurrentStage.textContent = `Тест (${data.completedTest}/${total})`;
+      } else if (data.stage === 'done') {
+        statCurrentStage.textContent = 'Завершено!';
+      } else {
+        statCurrentStage.textContent = data.currentLabel || 'Ініціалізація...';
+      }
+    }
+
+    if (progressBar && data.percentage !== undefined) {
+      progressBar.style.width = `${Math.max(4, data.percentage)}%`;
+    }
+
+    if (progressStepText && data.active) {
+      if (data.stage === 'reference') {
+        progressStepText.textContent = `Зняття еталонів: ${data.completedReference} з ${total} (Залишилось: ${total - data.completedReference})`;
+      } else if (data.stage === 'test') {
+        progressStepText.textContent = `Зняття тестів: ${data.completedTest} з ${total} (Залишилось: ${total - data.completedTest})`;
+      } else {
+        progressStepText.textContent = `Опрацьовано: ${completed} з ${total} сторінок (Залишилось: ${remaining})`;
+      }
+    }
+  }
 
   // Handle Approve
   approveBtn.addEventListener('click', async () => {
@@ -483,6 +551,7 @@ document.addEventListener('DOMContentLoaded', () => {
     stopBtn.addEventListener('click', async () => {
       try {
         stopBtn.disabled = true;
+        stopProgressPolling();
         addLog('Запит на зупинку порівняння...', 'error');
 
         const res = await fetch('/api/stop', { method: 'POST' });

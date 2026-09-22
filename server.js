@@ -408,6 +408,8 @@ async function performOneTimeSiteLogin(origin, username, password, httpAuthUsern
 
 // API: Stop active comparison process
 app.post('/api/stop', (req, res) => {
+  currentRunProgress.active = false;
+  currentRunProgress.stage = 'stopped';
   if (activeChildProcess) {
     try {
       activeChildProcess.kill('SIGKILL');
@@ -429,6 +431,58 @@ let activeVncState = {
   context: null,
   startedAt: null
 };
+
+let currentRunProgress = {
+  active: false,
+  totalScenarios: 0,
+  completedReference: 0,
+  completedTest: 0,
+  currentLabel: '',
+  stage: 'idle',
+  startedAt: null
+};
+
+// API: Get Live Progress
+app.get('/api/progress', (req, res) => {
+  const total = currentRunProgress.totalScenarios || 1;
+  const refDone = currentRunProgress.completedReference || 0;
+  const testDone = currentRunProgress.completedTest || 0;
+
+  const completedPages = Math.max(refDone, testDone);
+  const remainingPages = Math.max(0, total - completedPages);
+  const totalSteps = total * 2;
+  const doneSteps = refDone + testDone;
+  const percentage = Math.min(100, Math.round((doneSteps / totalSteps) * 100));
+
+  res.json({
+    success: true,
+    active: currentRunProgress.active,
+    stage: currentRunProgress.stage,
+    totalScenarios: total,
+    completedPages: completedPages,
+    remainingPages: remainingPages,
+    completedReference: refDone,
+    completedTest: testDone,
+    percentage: percentage,
+    currentLabel: currentRunProgress.currentLabel
+  });
+});
+
+// API: Internal progress tick from onReady.js
+app.post('/api/internal/progress-tick', (req, res) => {
+  const { label, isReference } = req.body || {};
+  if (currentRunProgress.active) {
+    if (isReference) {
+      currentRunProgress.completedReference++;
+      currentRunProgress.stage = 'reference';
+    } else {
+      currentRunProgress.completedTest++;
+      currentRunProgress.stage = 'test';
+    }
+    if (label) currentRunProgress.currentLabel = label;
+  }
+  res.json({ success: true });
+});
 
 async function stopVncSession() {
   if (activeVncState.browser) {
@@ -907,6 +961,16 @@ async function runBackstopSuite(scenarios, width, height, siteUserUsername, site
     }
   }
 
+  currentRunProgress = {
+    active: true,
+    totalScenarios: scenarios.length,
+    completedReference: 0,
+    completedTest: 0,
+    currentLabel: 'Ініціалізація сценаріїв...',
+    stage: 'starting',
+    startedAt: Date.now()
+  };
+
   const asyncLimit = (siteUserUsername && siteUserPassword) ? 1 : 5;
 
   const config = {
@@ -991,6 +1055,9 @@ async function runBackstopSuite(scenarios, width, height, siteUserUsername, site
       }
     }
   }
+
+  currentRunProgress.active = false;
+  currentRunProgress.stage = 'done';
 
   res.json({
     success: true,
