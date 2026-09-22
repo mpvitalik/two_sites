@@ -444,14 +444,17 @@ let currentRunProgress = {
 
 // API: Get Live Progress
 app.get('/api/progress', (req, res) => {
-  const total = currentRunProgress.totalScenarios || 1;
-  const refDone = currentRunProgress.completedReference || 0;
-  const testDone = currentRunProgress.completedTest || 0;
+  const total = Math.max(1, currentRunProgress.totalScenarios || 1);
+  const refDone = Math.min(total, currentRunProgress.completedReference || 0);
+  const testDone = Math.min(total, currentRunProgress.completedTest || 0);
 
-  const completedPages = Math.max(refDone, testDone);
+  const completedPages = (currentRunProgress.stage === 'test')
+    ? testDone
+    : (currentRunProgress.stage === 'done' ? total : refDone);
+
   const remainingPages = Math.max(0, total - completedPages);
   const totalSteps = total * 2;
-  const doneSteps = refDone + testDone;
+  const doneSteps = Math.min(totalSteps, refDone + testDone);
   const percentage = Math.min(100, Math.round((doneSteps / totalSteps) * 100));
 
   res.json({
@@ -473,10 +476,14 @@ app.post('/api/internal/progress-tick', (req, res) => {
   const { label, isReference } = req.body || {};
   if (currentRunProgress.active) {
     if (isReference) {
-      currentRunProgress.completedReference++;
+      if (currentRunProgress.completedReference < currentRunProgress.totalScenarios) {
+        currentRunProgress.completedReference++;
+      }
       currentRunProgress.stage = 'reference';
     } else {
-      currentRunProgress.completedTest++;
+      if (currentRunProgress.completedTest < currentRunProgress.totalScenarios) {
+        currentRunProgress.completedTest++;
+      }
       currentRunProgress.stage = 'test';
     }
     if (label) currentRunProgress.currentLabel = label;

@@ -482,8 +482,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const progressStepText = document.getElementById('progressStepText');
 
     const total = data.totalScenarios || 0;
-    const completed = data.completedPages || 0;
-    const remaining = data.remainingPages || 0;
+    const completed = Math.min(total, Math.max(0, data.completedPages || 0));
+    const remaining = Math.max(0, total - completed);
 
     if (statCompletedPages) {
       statCompletedPages.textContent = `${completed} / ${total}`;
@@ -494,9 +494,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (statCurrentStage) {
       if (data.stage === 'reference') {
-        statCurrentStage.textContent = `Еталон (${data.completedReference}/${total})`;
+        const refCount = Math.min(total, data.completedReference || 0);
+        statCurrentStage.textContent = `Еталон (${refCount}/${total})`;
       } else if (data.stage === 'test') {
-        statCurrentStage.textContent = `Тест (${data.completedTest}/${total})`;
+        const testCount = Math.min(total, data.completedTest || 0);
+        statCurrentStage.textContent = `Тест (${testCount}/${total})`;
       } else if (data.stage === 'done') {
         statCurrentStage.textContent = 'Завершено!';
       } else {
@@ -505,14 +507,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (progressBar && data.percentage !== undefined) {
-      progressBar.style.width = `${Math.max(4, data.percentage)}%`;
+      progressBar.style.width = `${Math.min(100, Math.max(4, data.percentage))}%`;
     }
 
     if (progressStepText && data.active) {
       if (data.stage === 'reference') {
-        progressStepText.textContent = `Зняття еталонів: ${data.completedReference} з ${total} (Залишилось: ${total - data.completedReference})`;
+        const refCount = Math.min(total, data.completedReference || 0);
+        const refRem = Math.max(0, total - refCount);
+        progressStepText.textContent = `Зняття еталонів: ${refCount} з ${total} (Залишилось: ${refRem})`;
       } else if (data.stage === 'test') {
-        progressStepText.textContent = `Зняття тестів: ${data.completedTest} з ${total} (Залишилось: ${total - data.completedTest})`;
+        const testCount = Math.min(total, data.completedTest || 0);
+        const testRem = Math.max(0, total - testCount);
+        progressStepText.textContent = `Зняття тестів: ${testCount} з ${total} (Залишилось: ${testRem})`;
       } else {
         progressStepText.textContent = `Опрацьовано: ${completed} з ${total} сторінок (Залишилось: ${remaining})`;
       }
