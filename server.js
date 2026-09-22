@@ -1065,6 +1065,9 @@ async function runBackstopSuite(scenarios, width, height, siteUserUsername, site
 
   currentRunProgress.active = false;
   currentRunProgress.stage = 'done';
+  currentRunProgress.completedReference = scenarios.length;
+  currentRunProgress.completedTest = scenarios.length;
+  currentRunProgress.currentLabel = 'Завершено!';
 
   res.json({
     success: true,

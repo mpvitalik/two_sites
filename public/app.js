@@ -438,6 +438,18 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       setProgress(100, 'Завершено');
+      const finalTotal = data.totalScenarios || 1;
+      updateProgressUI({
+        active: false,
+        stage: 'done',
+        totalScenarios: finalTotal,
+        completedPages: finalTotal,
+        remainingPages: 0,
+        completedReference: finalTotal,
+        completedTest: finalTotal,
+        percentage: 100,
+        currentLabel: 'Завершено!'
+      });
       resultsSection.classList.remove('hidden');
 
     } catch (err) {
@@ -482,8 +494,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const progressStepText = document.getElementById('progressStepText');
 
     const total = data.totalScenarios || 0;
-    const completed = Math.min(total, Math.max(0, data.completedPages || 0));
-    const remaining = Math.max(0, total - completed);
+    const isDone = data.stage === 'done' || (!data.active && data.completedPages >= total);
+    const completed = isDone ? total : Math.min(total, Math.max(0, data.completedPages || 0));
+    const remaining = isDone ? 0 : Math.max(0, total - completed);
 
     if (statCompletedPages) {
       statCompletedPages.textContent = `${completed} / ${total}`;
@@ -493,25 +506,28 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (statCurrentStage) {
-      if (data.stage === 'reference') {
+      if (isDone || data.stage === 'done') {
+        statCurrentStage.textContent = 'Завершено!';
+      } else if (data.stage === 'reference') {
         const refCount = Math.min(total, data.completedReference || 0);
         statCurrentStage.textContent = `Еталон (${refCount}/${total})`;
       } else if (data.stage === 'test') {
         const testCount = Math.min(total, data.completedTest || 0);
         statCurrentStage.textContent = `Тест (${testCount}/${total})`;
-      } else if (data.stage === 'done') {
-        statCurrentStage.textContent = 'Завершено!';
       } else {
         statCurrentStage.textContent = data.currentLabel || 'Ініціалізація...';
       }
     }
 
     if (progressBar && data.percentage !== undefined) {
-      progressBar.style.width = `${Math.min(100, Math.max(4, data.percentage))}%`;
+      const pct = isDone ? 100 : Math.min(100, Math.max(4, data.percentage));
+      progressBar.style.width = `${pct}%`;
     }
 
-    if (progressStepText && data.active) {
-      if (data.stage === 'reference') {
+    if (progressStepText) {
+      if (isDone || data.stage === 'done') {
+        progressStepText.textContent = `Опрацьовано: ${total} з ${total} сторінок (Залишилось: 0)`;
+      } else if (data.stage === 'reference') {
         const refCount = Math.min(total, data.completedReference || 0);
         const refRem = Math.max(0, total - refCount);
         progressStepText.textContent = `Зняття еталонів: ${refCount} з ${total} (Залишилось: ${refRem})`;
